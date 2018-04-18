@@ -49,6 +49,12 @@
     <!-- distributionManagement - Sonatype-nexus-snapshots and sonatype-nexus-release How???? Why????  What???? see jsoup POM -->
 
     <dependencies>
+        <!-- https://mvnrepository.com/artifact/org.seleniumhq.selenium/selenium-java -->
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-java</artifactId>
+            <version>3.10.0</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
@@ -74,6 +80,11 @@
             <groupId>org.jsoup</groupId>
             <artifactId>jsoup</artifactId>
             <version>1.11.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.teamcontrolium</groupId>
+            <artifactId>utilities</artifactId>
+            <version>1.1.0</version>
         </dependency>
     </dependencies>
 
