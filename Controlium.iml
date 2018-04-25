@@ -20,5 +20,6 @@
     <orderEntry type="library" name="Maven: org.opentest4j:opentest4j:1.0.0" level="project" />
     <orderEntry type="library" name="Maven: org.junit.platform:junit-platform-commons:1.0.0" level="project" />
     <orderEntry type="library" name="Maven: org.jsoup:jsoup:1.11.2" level="project" />
+    <orderEntry type="library" name="Maven: org.teamcontrolium:utilities:1.1.0" level="project" />
   </component>
 </module>
