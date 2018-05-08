@@ -51,7 +51,7 @@ public class ObjectMapping {
     public By getSeleniumBy() { return _seleniumBy; }
 
 
-    private String getFriendlyName() {
+    public String getFriendlyName() {
         return (_friendlyName==null) ?
                 (_findLogic==null) ?
                         "No name or find logic!" :
