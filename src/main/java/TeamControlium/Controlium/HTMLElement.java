@@ -72,8 +72,8 @@ public class HTMLElement {
 
 
       // METHODS
-    public boolean isDisplayed() {
-          return isVisible(this);
+    public boolean isVisible() {
+          return isVisible(false);
     }
 
     public boolean isVisible(boolean checkIfElementIsInViewport ) {
@@ -164,7 +164,7 @@ public class HTMLElement {
     /// <remarks>
     /// This uses the Selenium Displayed boolean property.
     /// </remarks>
-    public static boolean isVisible(HTMLElement element) { return Visible(element,false);}
+    public static boolean isVisible(HTMLElement element) { return isVisible(element,false);}
     public static boolean isVisible(HTMLElement element, boolean CheckIfElementIsInViewport)
     {
         return element.isVisible(CheckIfElementIsInViewport);

@@ -3,6 +3,10 @@ package TeamControlium.Controlium;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 
+import javax.print.attribute.standard.PagesPerMinute;
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
+
 public class SeleniumDriver {
     // CONSTANT FIELDS
     private final String[] SeleniumServerFolder = { "Selenium", "SeleniumServerFolder" };      // Location of the local Selenium Servers (Only required if running locally
@@ -18,6 +22,46 @@ public class SeleniumDriver {
     private final String[] SeleniumLogFilename = { "Selenium", "LogFile" };                   // Path and file for Selenium Log file.  Default is the console window
 
     private WebDriver webDriver;
+
+
+    private Duration _findTimeout = null;
+    private Duration _pollInterval = null;
+    private Duration _pageLoadTimeout = null;
+    private final long defaultTimeout = 60000; // 1 Minute
+    private final long defaultPollInterval = 500; // 500mS
+
+    public SeleniumDriver() {
+        // Initialise defaults
+        setFindTimeout(Duration.ofMillis(defaultTimeout));
+        setPollInterval(Duration.ofMillis(defaultPollInterval));
+        setPageLoadTimeout(Duration.ofMillis(defaultTimeout));
+
+        MAT THIS IS WHERE WE ARE - DOING THIS SO THAT THE ELEMENTS WORK CAN CALL FOR TIMEOUTS.......
+        NEED TO PUT LOTS OF COMMENTS IN AROUND WHY ARE DOING THE TIMEOUTS AND NOT LETTING SELENIUM
+
+
+
+    }
+
+
+
+    // PROPERTIES
+    public Duration setFindTimeout(Duration findTimeout) { _findTimeout = findTimeout; return getFindTimeout();}
+    public Duration getFindTimeout() { return _findTimeout;}
+    public Duration setPollInterval(Duration pollInterval) { _pollInterval = pollInterval; return getPollInterval();}
+    public Duration getPollInterval() { return _pollInterval;}
+    public Duration setPageLoadTimeout(Duration pageLoadTimeout) {
+        if (webDriver!=null) {
+            webDriver.manage().timeouts().pageLoadTimeout(pageLoadTimeout.toMillis(), TimeUnit.MILLISECONDS);
+        }
+        // We keep a note of the page-load timeout as there is no way of getting it out of Seleniunium in Java....
+        _pageLoadTimeout = pageLoadTimeout;
+    }
+    public Duration getPageLoadTimeout() { return _pageLoadTimeout;}
+
+
+
+
 
 
     //////////// JAVASCRIPT EXECUTION
