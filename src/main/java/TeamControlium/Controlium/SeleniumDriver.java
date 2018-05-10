@@ -3,7 +3,6 @@ package TeamControlium.Controlium;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 
-import javax.print.attribute.standard.PagesPerMinute;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
@@ -36,18 +35,14 @@ public class SeleniumDriver {
         setPollInterval(Duration.ofMillis(defaultPollInterval));
         setPageLoadTimeout(Duration.ofMillis(defaultTimeout));
 
-        MAT THIS IS WHERE WE ARE - DOING THIS SO THAT THE ELEMENTS WORK CAN CALL FOR TIMEOUTS.......
-        NEED TO PUT LOTS OF COMMENTS IN AROUND WHY ARE DOING THE TIMEOUTS AND NOT LETTING SELENIUM
-
-
 
     }
 
 
 
     // PROPERTIES
-    public Duration setFindTimeout(Duration findTimeout) { _findTimeout = findTimeout; return getFindTimeout();}
-    public Duration getFindTimeout() { return _findTimeout;}
+    public Duration setFindTimeout(Duration findTimeout) { _findTimeout = findTimeout; return getElementFindTimeout();}
+    public Duration getElementFindTimeout() { return _findTimeout;}
     public Duration setPollInterval(Duration pollInterval) { _pollInterval = pollInterval; return getPollInterval();}
     public Duration getPollInterval() { return _pollInterval;}
     public Duration setPageLoadTimeout(Duration pageLoadTimeout) {

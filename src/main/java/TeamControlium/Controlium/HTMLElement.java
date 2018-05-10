@@ -5,6 +5,9 @@ import org.apache.commons.lang3.time.StopWatch;
 import org.openqa.selenium.WebElement;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class HTMLElement {
@@ -12,6 +15,8 @@ public class HTMLElement {
       private ObjectMapping _mappingDetails;
       private WebElement _webElement;
       private Object _parentElementOrDriver;
+
+      private long elementChangeDeltaTimeMs = 200; // Time to wait between samples when checking if an element is changing (IE. moving on screen)
 
 
       // PROPERTIES
@@ -67,11 +72,84 @@ public class HTMLElement {
       public boolean hasAParent() { return (_parentElementOrDriver!=null);}
       public boolean isBoundToAWebElement() { return (_webElement!=null);}
 
+      public boolean isHeightStable(Duration deltaTime) { return !isAttributeChanging("offsetHeight",deltaTime);}
+      public boolean isHeightStable() { return isHeightStable(Duration.ofMillis(elementChangeDeltaTimeMs));}
+
+    public boolean isWidthStable(Duration deltaTime) { return !isAttributeChanging("offsetWidth",deltaTime);}
+    public boolean isWidthStable() { return isWidthStable(Duration.ofMillis(elementChangeDeltaTimeMs));}
+
+    public boolean isSizeStable(Duration deltaTime) { return !isAttributeChanging(new String[]{"offsetWidth", "offsetHeight"},deltaTime);}
+    public boolean isSizeStable() { return isSizeStable(Duration.ofMillis(elementChangeDeltaTimeMs));}
+
+    MAT CARRY ON HERE
+
+    private boolean isAttributeChanging(String attributeName,Duration timeDelta) {
+          boolean isChanging;
+          try {
+              String first = getSeleniumDriver().ExecuteJavaScript(String.class, String.format("return argumaents[0].%s;", attributeName), _webElement);
+              try {
+                  Thread.sleep(timeDelta.toMillis());
+              } catch (Exception e) {
+                  Logger.WriteLine(Logger.LogLevels.Error, "Exception sleeping during change monitoring of attribute.");
+                  throw new RuntimeException(String.format("Exception sleeping during time stop-start delta", e));
+              }
+              String second = getSeleniumDriver().ExecuteJavaScript(String.class, String.format("return arguments[0].%s;", attributeName), _webElement);
+              isChanging = first.equals(second);
+              Logger.WriteLine(Logger.LogLevels.TestDebug, "Element [%s], Attribute [%s], Time Delta [%dmS], First State [%s], Second State [%s] - %s",
+                                                                      getFriendlyName(),
+                                                                      attributeName,
+                                                                      timeDelta.toMillis(),
+                                                                      first,
+                                                                      second,
+                                                                      (isChanging)?"Is changing":"Is not changing");
+              return (first.equals(second));
+          }
+          catch (Exception e) {
+              Logger.WriteLine(Logger.LogLevels.Error, "Exception monitoring attribute [%s] of element [%s]: %s", attributeName, this.getFriendlyName(), e.toString());
+              throw new RuntimeException(String.format("Exception monitoring element attribute. See log.", e));
+          }
+      }
 
 
+    private boolean isAttributeChanging(String[] attributeNames,Duration timeDelta) {
+        HashMap<String,String> attributeFirstStates = new HashMap<String,String>();
+        boolean isChanging;
+
+        for(String attributeName : attributeNames) {
+            attributeFirstStates.put(attributeName,getSeleniumDriver().ExecuteJavaScript(String.class,String.format("return arguments[0].%s;",attributeName),_webElement));
+        }
+
+        try {
+            Thread.sleep(timeDelta.toMillis());
+        } catch (Exception e) {
+            Logger.WriteLine(Logger.LogLevels.Error, "Exception sleeping during change monitoring of attribute.");
+            throw new RuntimeException(String.format("Exception sleeping during time stop-start delta", e));
+        }
+
+        for(Map.Entry<String,String> attributeFirstState : attributeFirstStates.entrySet()) {
+            String second = getSeleniumDriver().ExecuteJavaScript(String.class,String.format("return argumaents[0].%s;",attributeFirstState.getKey()),_webElement);
+            isChanging = attributeFirstState.getValue().equals(second);
+
+            if(isChanging) {
+                Logger.WriteLine(Logger.LogLevels.TestDebug, "Element [%s], Attribute [%s], Time Delta [%dmS], First State [%s], Second State [%s] - Is changing",
+                        getFriendlyName(),
+                        attributeFirstState.getKey(),
+                        timeDelta.toMillis(),
+                        attributeFirstState.getValue(),
+                        second);
+                return true;
+            }
+        }
+
+        Logger.WriteLine(Logger.LogLevels.TestDebug, "Element [%s], Attributes [%s], Time Delta [%dmS].  All first states equal second states.  Element NOT changing",
+                getFriendlyName(),
+                String.join(", ",attributeNames),
+                timeDelta.toMillis());
+        return false;
+    }
 
 
-      // METHODS
+    // METHODS
     public boolean isVisible() {
           return isVisible(false);
     }
@@ -105,11 +183,12 @@ public class HTMLElement {
         boolean didStabilzeBeforeTimeout = false;
         int Itterations = 0;
         Duration actualTimeout = (timeout==null) ? getSeleniumDriver().getElementFindTimeout() : timeout;
+        long actualTimeoutMillis = actualTimeout.toMillis();
 
-        Logger.WriteLine(Logger.LogLevels.FrameworkInformation, "Wait %dms for element [%s] to become height stable", actualTimeout.toMillis(), getFriendlyName());
+        Logger.WriteLine(Logger.LogLevels.FrameworkInformation, "Wait %dms for element [%s] to become height stable", actualTimeoutMillis, getFriendlyName());
 
         StopWatch timeWaited = StopWatch.createStarted();
-        while (timeWaited.getTime(TimeUnit.MILLISECONDS) < actualTimeout.toMillis())
+        while (timeWaited.getTime(TimeUnit.MILLISECONDS) < actualTimeoutMillis)
         {
             //
             // We dont have a poll delay as the Height stabalization monitor uses a time delta to see if the height is stable.  That in effect
