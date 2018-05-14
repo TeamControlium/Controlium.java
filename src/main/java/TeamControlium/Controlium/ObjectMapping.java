@@ -11,9 +11,8 @@ public class ObjectMapping {
 
 
     private ByType _mappingType;
-    private String _findLogic;          // This is/was the find logic wanting to be used to identify the element with parameters resolved if any
     private String _findLogicOriginal;  // This is/was the find logic wanting to be used to identify the element
-    private String _actualFindLogic;    // Actual find logic used.
+    private String _findLogicActual;    // Actual find logic used.
     private String _friendlyName;       // Human readable name of the element with parameters resolved if any; for easy interpretations etc
     private String _friendlyNameOriginal;       // Original friendly name with parameters unresolved if any
     private By _seleniumBy;
@@ -32,23 +31,56 @@ public class ObjectMapping {
     private void InitObjectMap(String findLogic, String friendlyName)
     {
         this._findLogicOriginal = findLogic;
-        _findLogic = null;
         _friendlyNameOriginal = (friendlyName==null) ? findLogic : friendlyName;
         _friendlyName = null;
-        _seleniumBy = processFindLogic(findLogic);
     }
-
-
 
 
     public ByType getMappingType() { return _mappingType; }
 
-    public String getFindLogic() { return _findLogicOriginal;}
-    public String setFindLogic(String findLogic) { _findLogicOriginal = findLogic; return _findLogicOriginal; }
 
-    public String getFindLogicUsed() { return _actualFindLogic;}
 
-    public By getSeleniumBy() { return _seleniumBy; }
+    //
+    // Original Find Logic is set by the test script; IE. "div[@id='hello']"
+    //
+    // Actual Find Logic is used by Controlium to identify the element.  In most cases it will be the same,
+    // but in some instances it may be different; IE. Test may have used FindElements to find a range of
+    // elements using the find logic, the actual element found will therefore have an array indexer added.
+    // IE.
+    //   List<HTMLElement> elements = FindElements(new ObjectMapping("div[@id='hello']");
+    //   String actualFindLogic = elements[2].getActualFindLogic();
+    //
+    //   actualFindLogic is "(div[@id='hello'])[3]"  - NOTE the indexer is 3 not 2.  Selenium uses a 1-based indexing NOT 0!
+    //
+    //   When getActualFindLogic() is called the find logic cannot be changed as it may have been used in identification
+    //   of an element; changing would prevent replay which would be an issue with Stalinity prevention.
+    //
+
+
+    public String getOriginalFindLogic() { return _findLogicOriginal;}
+    public String setOriginalFindLogic(String findLogic)
+    {
+        if (_findLogicActual!=null) {
+            Logger.WriteLine(Logger.LogLevels.Error,"[%s]: Cannot change Find Logic ([%s]) after Actual Find Logic used! ",getFriendlyName(),_findLogicActual);
+            throw new RuntimeException(String.format("[%s]: Cannot change Find Logic ([%s]) after Actual Find Logic used! ",getFriendlyName(),_findLogicActual));
+        }
+        _findLogicOriginal = findLogic; return getOriginalFindLogic();}
+    public String getActualFindLogic() {
+        if (_findLogicActual==null) {
+            _findLogicActual=_findLogicOriginal;
+        }
+        return _findLogicActual;
+    }
+    public String setActualFindLogic(String findLogic) {
+        if (_findLogicActual!=null) {
+            Logger.WriteLine(Logger.LogLevels.Error,"[%s]: Cannot change Actual Find Logic ([%s]) after Actual Find Logic used! ",getFriendlyName(),_findLogicActual);
+            throw new RuntimeException(String.format("[%s]: Cannot change Actual Find Logic ([%s]) after Actual Find Logic used! ",getFriendlyName(),_findLogicActual));
+        }
+        _findLogicActual = findLogic; return getActualFindLogic();
+    }
+
+
+    public By getSeleniumBy() { return processFindLogic((getActualFindLogic())); }
 
 
     public String getFriendlyName() {
@@ -62,7 +94,19 @@ public class ObjectMapping {
 
     public ObjectMapping copy() {
         try {
-            return (ObjectMapping) this.clone();
+            //
+            // We do a dodgy here.  When copying a mapping we want to reset the Actual Find Logic as the copy has not yet been used
+            // and may be part of being built (IE. from FindElements).  So we want to clear the Actual Find Logic which cannot be done
+            // publically (obviously!).  So, we temporarily clear the actual find logic and then put it back after the clone...
+            //
+            // Note.  In Java Strings are immutable, so doing the assignment works and is safe.  Note though that this no way
+            //        thread-safe!!
+            //
+            String originalActualFindLogic = _findLogicActual;
+            _findLogicActual=null;
+            ObjectMapping clone = (ObjectMapping)this.clone();
+            _findLogicActual = originalActualFindLogic;
+            return clone;
         }
         catch (Exception e) {
             Logger.WriteLine(Logger.LogLevels.Error,"Exception cloning current Object Map (%s): %s",getFriendlyName(),e);
@@ -97,10 +141,8 @@ public class ObjectMapping {
             newFriendlyName = newFindLogic;
         }
 
-        _findLogic = newFindLogic;
+        _findLogicActual = newFindLogic;
         _friendlyName = newFriendlyName;
-
-        _seleniumBy = processFindLogic(_findLogic);
 
         return this;
     }

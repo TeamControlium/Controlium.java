@@ -1,10 +1,18 @@
 package TeamControlium.Controlium;
 
+import TeamControlium.Utilities.Logger;
+
+import org.apache.commons.lang3.time.StopWatch;
+import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
+
 
 public class SeleniumDriver {
     // CONSTANT FIELDS
@@ -35,7 +43,6 @@ public class SeleniumDriver {
         setPollInterval(Duration.ofMillis(defaultPollInterval));
         setPageLoadTimeout(Duration.ofMillis(defaultTimeout));
 
-
     }
 
 
@@ -55,6 +62,114 @@ public class SeleniumDriver {
     public Duration getPageLoadTimeout() { return _pageLoadTimeout;}
 
 
+
+
+
+    public HTMLElement FindElement(HTMLElement parentElement,ObjectMapping objectMapping, boolean allowMultipleMatches,boolean waitUntilSingle, Duration timeout, Duration pollInterval, boolean waitUntilStable) {
+        List<HTMLElement> clauseResults = new ArrayList<HTMLElement>();
+
+        //
+        // We look after our own implicitWait (timeout) and poll interval rather that Selenium's as we are using our FindElements to find the element we want.  We use our
+        // FindElements so that we can control if ONLY a single match is allowed (Selenium FindElement allows multiple matches silently - see By class implementation) and extra debug logging.
+        //
+        long totalTimeoutMillis = timeout.toMillis();
+        long pollIntervalMillis = pollInterval.toMillis();
+
+        Logger.WriteLine(Logger.LogLevels.TestDebug, "Timeout - %s",DurationFormatted(timeout));
+        StopWatch timer = StopWatch.createStarted();
+
+        // Loop while:-
+        //  - we have no find results
+        //  or
+        //  - we have more than 1 match and we only want a single match but are ok waiting until we have only a single match
+        // we do at least one find!
+        while (clauseResults.size()==0 || (clauseResults.size()!=1 && !allowMultipleMatches  && waitUntilSingle)) {
+            clauseResults = FindElements(parentElement,objectMapping);
+            if (clauseResults.size()==0) {
+                try {
+                    Thread.sleep(pollIntervalMillis);
+                }
+                catch (Exception e) {
+                    timer.stop();
+                    Logger.WriteLine(Logger.LogLevels.Error,"Thread.sleep threw an exception after %s so aborting",DurationFormatted(timer.getTime()));
+                    throw new RuntimeException(String.format("Exception thrown while thread sleeping during Find Element (for [%s]) poll interval!",objectMapping.getFriendlyName()));
+                }
+                if (timer.getTime()>=totalTimeoutMillis) break;
+            }
+        }
+
+
+        MAT ENSURE THE waitUntilSingle WORKS OK!!!!
+
+        timer.stop();
+
+        if (clauseResults.size() > 1 && !allowMultipleMatches) {
+            Logger.WriteLine(Logger.LogLevels.Error, "Found %d matching elements in %s. Do not allow multiple matches so error!", clauseResults.size(), DurationFormatted(timer.getTime()));
+            throw new RuntimeException(String.format("Found %d elemments using [%s] find logic. allowMultipleMatches false so multiple matches not allowed!",
+                                                      clauseResults.size(), objectMapping.getActualFindLogic()));
+
+
+
+                    ((ParentElement == null) ? "DOM Top Level" : (string.IsNullOrEmpty(ParentElement.MappingDetails.FriendlyName) ? ("Unknown Parent (" + ParentElement.MappingDetails.FindLogic + ")") : ParentElement.MappingDetails.FriendlyName)), Mapping, clauseResults.Count);
+            element = null;
+            return false;
+
+        }
+
+
+
+    }
+
+
+    public List<HTMLElement> FindElements(HTMLElement parentElement, ObjectMapping mapping) {
+
+        List<WebElement> foundElements;
+        List<HTMLElement> returnElements = new ArrayList<HTMLElement>();
+
+
+        if (mapping==null) {
+            Logger.WriteLine(Logger.LogLevels.Error,"ObjectMapping = null!");
+            throw new RuntimeException("SeleniumDriver.FindElements called with mapping null!");
+        }
+
+        Logger.WriteLine(Logger.LogLevels.FrameworkDebug,"ObjectMapping = [%s] (%s)",mapping.getOriginalFindLogic(),mapping.getFriendlyName());
+
+        By seleniumFindBy = mapping.getSeleniumBy();
+
+
+        try {
+            Logger.WriteLine(Logger.LogLevels.FrameworkDebug,"Calling Selenium WebDriver findElements with By = [%s]",seleniumFindBy.toString());
+            foundElements = (parentElement==null) ? webDriver.findElements(seleniumFindBy) : parentElement.getSeleniumnWebElement().findElements(seleniumFindBy);
+        }
+        catch (Exception e) {
+            if (parentElement==null) {
+                Logger.WriteLine(Logger.LogLevels.Error, "Selenium error finding elements using find logic [%s] ([%s)]: %s", seleniumFindBy.toString(), mapping.getFriendlyName(), e.toString());
+                throw new RuntimeException(String.format("Selenium error finding elements using find logic [%s] ([%s)]", seleniumFindBy.toString(), mapping.getFriendlyName()));
+            }
+            else {
+                Logger.WriteLine(Logger.LogLevels.Error, "Selenium error finding elements offset from [%s (%s)] using find logic [%s] ([%s)]: %s",parentElement.getMappingDetails().getFriendlyName(),parentElement.getMappingDetails().getActualFindLogic(),seleniumFindBy.toString(), mapping.getFriendlyName(), e.toString());
+                throw new RuntimeException(String.format("Selenium error finding elements offset from [%s (%s)] using find logic [%s] ([%s)]: %s",parentElement.getMappingDetails().getFriendlyName(),parentElement.getMappingDetails().getActualFindLogic(),seleniumFindBy.toString(), mapping.getFriendlyName()));
+            }
+        }
+
+        if (parentElement==null)
+            Logger.WriteLine(Logger.LogLevels.TestInformation,"Found [%d] elements matching [%s] (%s)",foundElements.size(),mapping.getOriginalFindLogic(),mapping.getFriendlyName());
+        else
+            Logger.WriteLine(Logger.LogLevels.TestInformation,"Found [%d] elements matching [%s] (%s) offset from [%s]",foundElements.size(),mapping.getOriginalFindLogic(),mapping.getFriendlyName(),parentElement.getMappingDetails().getFriendlyName());
+
+
+        for(int index = 0;index<foundElements.size();index++) {
+            ObjectMapping actualMapping = mapping.copy();
+           if (actualMapping.getMappingType() == ObjectMapping.ByType.XPath) {
+               // We do this for xPath but what about the other types...  Maybe we should ONLY support xpath???
+               // Note that Selenium uses 1-based indexing so in the xpath we construct we add 1.
+               actualMapping.setActualFindLogic(String.format("(%s)[%s]",actualMapping.getOriginalFindLogic(), Integer.toString(index+1)));
+           }
+           HTMLElement htmlElement = new HTMLElement(this,foundElements.get(index),actualMapping);
+           returnElements.add(htmlElement);
+        }
+        return returnElements;
+    }
 
 
     //////////// JAVASCRIPT EXECUTION
@@ -97,5 +212,18 @@ public class SeleniumDriver {
     {
         Object dummy = executeJavaScript(Object.class,script,args);
     }
+
+    private String DurationFormatted(Duration duration) {
+        return DurationFormatted(duration.toMillis());
+    }
+    private String DurationFormatted(long millis) {
+        long hours = TimeUnit.MILLISECONDS.toHours(millis);
+        long minutes = TimeUnit.MILLISECONDS.toMinutes(millis) - (hours*60);
+        long seconds = TimeUnit.MILLISECONDS.toSeconds(millis) - (hours*3600) - (minutes*60);
+        long milliseconds = millis - (seconds*1000) - (minutes*60000) - (hours*3600000);
+        return String.format("%02d:%02d:%02d.%03d",hours,minutes,seconds,milliseconds);
+    }
+
+
 }
 

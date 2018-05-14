@@ -34,6 +34,15 @@ public class HTMLElement {
 
 
 
+    // Constructors
+    public HTMLElement() {
+    }
+    public HTMLElement(Object parent, WebElement underlyingWebElement, ObjectMapping mapping) {
+        setParentOfThisElement(parent);
+        setSeleniumWebElement(underlyingWebElement);
+        setMappingDetails(mapping);
+    }
+
 
       // PROPERTIES
       public WebElement getSeleniumnWebElement() {return _webElement;}
@@ -86,7 +95,7 @@ public class HTMLElement {
       }
 
       public boolean hasAParent() { return (_parentElementOrDriver!=null);}
-      public boolean hasMappingDetails() { return (getMappingDetails()!=null && getMappingDetails().getFindLogic()!=null);}
+      public boolean hasMappingDetails() { return (getMappingDetails()!=null && getMappingDetails().getOriginalFindLogic()!=null);}
       public boolean isBoundToAWebElement() { return (_webElement!=null);}
 
       public boolean isHeightStable(Duration deltaTime) { return !isAttributeChanging("offsetHeight",deltaTime);}
@@ -274,7 +283,7 @@ public class HTMLElement {
         }
         catch (Exception ex)
         {
-            throw new RuntimeException(String.format("Unable to bind element [%s] as child of [%s] (Find Logic [%s])", getMappingDetails().getFriendlyName(),(getParentOfThisElement().getClass() == SeleniumDriver.class)?"Driver - IE. a Root element":((HTMLElement)getParentOfThisElement()).getMappingDetails().getFriendlyName(), getMappingDetails().getFindLogic()), ex);
+            throw new RuntimeException(String.format("Unable to bind element [%s] as child of [%s] (Find Logic [%s])", getMappingDetails().getFriendlyName(),(getParentOfThisElement().getClass() == SeleniumDriver.class)?"Driver - IE. a Root element":((HTMLElement)getParentOfThisElement()).getMappingDetails().getFriendlyName(), getMappingDetails().getOriginalFindLogic()), ex);
         }
         this.setSeleniumWebElement(foundElement.getSeleniumnWebElement());
         return this;
