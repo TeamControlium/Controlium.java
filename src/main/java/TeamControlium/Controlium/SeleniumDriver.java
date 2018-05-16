@@ -45,8 +45,6 @@ public class SeleniumDriver {
 
     }
 
-
-
     // PROPERTIES
     public Duration setFindTimeout(Duration findTimeout) { _findTimeout = findTimeout; return getElementFindTimeout();}
     public Duration getElementFindTimeout() { return _findTimeout;}
@@ -58,15 +56,24 @@ public class SeleniumDriver {
         }
         // We keep a note of the page-load timeout as there is no way of getting it out of Seleniunium in Java....
         _pageLoadTimeout = pageLoadTimeout;
+        return getPageLoadTimeout();
     }
     public Duration getPageLoadTimeout() { return _pageLoadTimeout;}
 
+    public HTMLElement FindElement(ObjectMapping objectMapping) { return FindElement(null,objectMapping, false, false, getElementFindTimeout(), getPollInterval(), false);}
+    public HTMLElement FindElement(ObjectMapping objectMapping,boolean waitUntilStable) { return FindElement(null,objectMapping, false, false, getElementFindTimeout(), getPollInterval(), waitUntilStable);}
+    public HTMLElement FindElement(ObjectMapping objectMapping,Duration timeout) { return FindElement(null,objectMapping, false, false, timeout, getPollInterval(), false);}
+    public HTMLElement FindElement(ObjectMapping objectMapping,Duration timeout,boolean waitUntilStable) { return FindElement(null,objectMapping, false, false, timeout, getPollInterval(), waitUntilStable);}
+    public HTMLElement FindElement(ObjectMapping objectMapping,Duration timeout,Duration pollInterval) { return FindElement(null,objectMapping, false, false, timeout, pollInterval, false);}
+    public HTMLElement FindElement(ObjectMapping objectMapping,Duration timeout,Duration pollInterval,boolean waitUntilStable) { return FindElement(null,objectMapping, false, false, timeout, pollInterval, waitUntilStable);}
 
 
-
-
+    public HTMLElement FindElement(ObjectMapping objectMapping, boolean allowMultipleMatches,boolean waitUntilSingle, Duration timeout, Duration pollInterval, boolean waitUntilStable) { return FindElement(null,objectMapping, allowMultipleMatches, waitUntilSingle, timeout, pollInterval, waitUntilStable);}
     public HTMLElement FindElement(HTMLElement parentElement,ObjectMapping objectMapping, boolean allowMultipleMatches,boolean waitUntilSingle, Duration timeout, Duration pollInterval, boolean waitUntilStable) {
-        List<HTMLElement> clauseResults = new ArrayList<HTMLElement>();
+        List<HTMLElement> clauseResults = null;
+        boolean multiLogShown=false;
+        boolean showMultiMatches=true;
+        boolean isStable=false;
 
         //
         // We look after our own implicitWait (timeout) and poll interval rather that Selenium's as we are using our FindElements to find the element we want.  We use our
@@ -76,50 +83,114 @@ public class SeleniumDriver {
         long pollIntervalMillis = pollInterval.toMillis();
 
         Logger.WriteLine(Logger.LogLevels.TestDebug, "Timeout - %s",DurationFormatted(timeout));
-        StopWatch timer = StopWatch.createStarted();
 
-        // Loop while:-
-        //  - we have no find results
-        //  or
-        //  - we have more than 1 match and we only want a single match but are ok waiting until we have only a single match
-        // we do at least one find!
-        while (clauseResults.size()==0 || (clauseResults.size()!=1 && !allowMultipleMatches  && waitUntilSingle)) {
-            clauseResults = FindElements(parentElement,objectMapping);
+        while (waitUntilStable && !isStable) {
+
+            StopWatch timer = StopWatch.createStarted();
+
+            // Loop while:-
+            //  - we have no find results
+            //  or
+            //  - we have more than 1 match and we only want a single match but are ok waiting until we have only a single match
+            // we do at least one find!
+            clauseResults = getHtmlElements(parentElement,                                   // Parent element to search from.  If null searches from DOM root
+                                            objectMapping,                                   // Find logic
+                                            allowMultipleMatches,                            // If true allows multiple matches
+                                            waitUntilSingle,                                 // If true and allowMultipleMatches true, will wait until timeout or a SINGLE match is found
+                                            (clauseResults==null || clauseResults.size()<2), // Controls logging of multiple matches.  Only show once IF we are search first time OR have searched with only a single result
+                                            totalTimeoutMillis,                              // Search timeout in milliseconds
+                                            pollIntervalMillis,                              // Polling ionterval in milliseconds
+                                            timer);                                          // Find stopwatch timing whole finding
+
             if (clauseResults.size()==0) {
-                try {
-                    Thread.sleep(pollIntervalMillis);
-                }
-                catch (Exception e) {
-                    timer.stop();
-                    Logger.WriteLine(Logger.LogLevels.Error,"Thread.sleep threw an exception after %s so aborting",DurationFormatted(timer.getTime()));
-                    throw new RuntimeException(String.format("Exception thrown while thread sleeping during Find Element (for [%s]) poll interval!",objectMapping.getFriendlyName()));
-                }
-                if (timer.getTime()>=totalTimeoutMillis) break;
+                String errorText = String.format("Time reached and found 0 matching elements using ([%s] - %s) from [%s] (Waited upto %dmS).",
+                        objectMapping.getActualFindLogic(),
+                        objectMapping.getFriendlyName(),
+                        (parentElement == null) ? "DOM Top Level" : parentElement.getMappingDetails().getFriendlyName(),
+                        timer.getTime());
+                Logger.WriteLine(Logger.LogLevels.Error, errorText);
+                throw new RuntimeException(errorText);
+
             }
+            if (clauseResults.size() > 1 && !allowMultipleMatches) {
+                String errorText = String.format("Found %d matching elements using ([%s] - %s) from [%s] (Waited upto %dmS). allowMultipleMatches=false so error!",
+                        clauseResults.size(),
+                        objectMapping.getActualFindLogic(),
+                        objectMapping.getFriendlyName(),
+                        (parentElement == null) ? "DOM Top Level" : parentElement.getMappingDetails().getFriendlyName(),
+                        timer.getTime());
+                Logger.WriteLine(Logger.LogLevels.Error, errorText);
+                throw new RuntimeException(errorText);
+            }
+
+            if (showMultiMatches && !waitUntilSingle) {
+                Logger.WriteLine(Logger.LogLevels.TestDebug, "From [%s], find [%s (%s)] returned %d matches (%s multiple matches).",
+                        (parentElement == null) ? "DOM Top Level" : parentElement.getMappingDetails().getFriendlyName(),
+                        objectMapping.getActualFindLogic(),
+                        objectMapping.getFriendlyName(),
+                        clauseResults.size(),
+                        (allowMultipleMatches) ? "Allowing" : "Not");
+                showMultiMatches=false;
+            }
+
+            if (waitUntilStable) {
+                if (clauseResults.get(0).isPositionStable()) {
+                    Logger.WriteLine(Logger.LogLevels.TestDebug, "From [%s], find [%s (%s)] returned %d matches (%s multiple matches.  Element 0 is stable, so returning...).",
+                            (parentElement == null) ? "DOM Top Level" : parentElement.getMappingDetails().getFriendlyName(),
+                            objectMapping.getActualFindLogic(),
+                            objectMapping.getFriendlyName(),
+                            clauseResults.size(),
+                            (allowMultipleMatches) ? "Allowing" : "Not");
+                    return clauseResults.get(0);
+                } else {
+                    if (timer.getTime()>=totalTimeoutMillis) {
+                        Logger.WriteLine(Logger.LogLevels.Error, "From [%s], find [%s (%s)] returned %d matches (%s multiple matches). We must wait until stable, element 0 is NOT stable and timeout reached so throwing",
+                                (parentElement == null) ? "DOM Top Level" : parentElement.getMappingDetails().getFriendlyName(),
+                                objectMapping.getActualFindLogic(),
+                                objectMapping.getFriendlyName(),
+                                clauseResults.size(),
+                                (allowMultipleMatches) ? "Allowing" : "Not");
+                        throw new RuntimeException(String.format("From [%s], find [%s (%s)] returned %d matches (%s multiple matches). We must wait until stable and element 0 NOT stable and timeout reached after %dmS.",
+                                (parentElement == null) ? "DOM Top Level" : parentElement.getMappingDetails().getFriendlyName(),
+                                objectMapping.getActualFindLogic(),
+                                objectMapping.getFriendlyName(),
+                                clauseResults.size(),
+                                (allowMultipleMatches) ? "Allowing" : "Not",
+                                timer.getTime()));
+                    }
+                    Logger.WriteLine(Logger.LogLevels.TestDebug, "From [%s], find [%s (%s)] returned %d matches (%s multiple matches).  Element 0 is NOT stable and we must wait until stable...",
+                            (parentElement == null) ? "DOM Top Level" : parentElement.getMappingDetails().getFriendlyName(),
+                            objectMapping.getActualFindLogic(),
+                            objectMapping.getFriendlyName(),
+                            clauseResults.size(),
+                            (allowMultipleMatches) ? "Allowing" : "Not");
+                }
+            }
+
         }
-
-
-        MAT ENSURE THE waitUntilSingle WORKS OK!!!!
-
-        timer.stop();
-
-        if (clauseResults.size() > 1 && !allowMultipleMatches) {
-            Logger.WriteLine(Logger.LogLevels.Error, "Found %d matching elements in %s. Do not allow multiple matches so error!", clauseResults.size(), DurationFormatted(timer.getTime()));
-            throw new RuntimeException(String.format("Found %d elemments using [%s] find logic. allowMultipleMatches false so multiple matches not allowed!",
-                                                      clauseResults.size(), objectMapping.getActualFindLogic()));
-
-
-
-                    ((ParentElement == null) ? "DOM Top Level" : (string.IsNullOrEmpty(ParentElement.MappingDetails.FriendlyName) ? ("Unknown Parent (" + ParentElement.MappingDetails.FindLogic + ")") : ParentElement.MappingDetails.FriendlyName)), Mapping, clauseResults.Count);
-            element = null;
-            return false;
-
-        }
-
-
-
+        return clauseResults.get(0);
     }
 
+    private List<HTMLElement> getHtmlElements(HTMLElement parentElement, ObjectMapping objectMapping, boolean allowMultipleMatches, boolean waitUntilSingle, boolean showMultiFound, long totalTimeoutMillis, long pollIntervalMillis, StopWatch timer) {
+        List<HTMLElement> clauseResults = new ArrayList<HTMLElement>();
+        while (clauseResults.size() == 0 || (clauseResults.size() != 1 && !allowMultipleMatches && waitUntilSingle)) {
+            clauseResults = FindElements(parentElement, objectMapping);
+            if (clauseResults.size() == 0 || (clauseResults.size() != 1 && !allowMultipleMatches && waitUntilSingle)) {
+                if (clauseResults.size() > 0 && showMultiFound) {
+                    Logger.WriteLine(Logger.LogLevels.TestDebug, "Found %d elements matching [%s].  Waiting until only a single element is found...", clauseResults.size(), objectMapping.getActualFindLogic());
+                    showMultiFound = false;
+                }
+                try {
+                    Thread.sleep(pollIntervalMillis);
+                } catch (Exception e) {
+                    Logger.WriteLine(Logger.LogLevels.Error, "Thread.sleep threw an exception after %s so aborting", DurationFormatted(timer.getTime()));
+                    throw new RuntimeException(String.format("Exception thrown while thread sleeping during Find Element (for [%s]) poll interval!", objectMapping.getFriendlyName()));
+                }
+                if (timer.getTime() >= totalTimeoutMillis) break;
+            }
+        }
+        return clauseResults;
+    }
 
     public List<HTMLElement> FindElements(HTMLElement parentElement, ObjectMapping mapping) {
 
