@@ -39,8 +39,8 @@
                 <version>3.7.0</version>
                 <configuration>
                     <!-- or whatever version you use -->
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <source>10</source>
+                    <target>10</target>
                 </configuration>
             </plugin>
         </plugins>
@@ -85,6 +85,11 @@
             <groupId>org.teamcontrolium</groupId>
             <artifactId>utilities</artifactId>
             <version>1.1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>5.0.0</version>
         </dependency>
     </dependencies>
     <properties>

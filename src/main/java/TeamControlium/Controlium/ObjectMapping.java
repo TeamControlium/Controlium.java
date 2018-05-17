@@ -85,9 +85,11 @@ public class ObjectMapping {
 
     public String getFriendlyName() {
         return (_friendlyName==null) ?
-                (_findLogic==null) ?
+                (_findLogicOriginal==null) ?
+                        (_findLogicActual==null) ?
                         "No name or find logic!" :
-                        _findLogic :
+                                _findLogicActual :
+                        _findLogicOriginal :
                 _friendlyName;
     }
 
@@ -123,7 +125,7 @@ public class ObjectMapping {
                 Logger.WriteLine(Logger.LogLevels.Error,"Cannot resolve parameters, find logic is null!");
                 throw new RuntimeException("Cannot resolve parameters, find logic is null! See log.");
             } else {
-                newFindLogic = String.format(_findLogicOriginal,params);
+                newFindLogic = String.format(_findLogicOriginal,(Object[])params);
             }
         }
         catch (Exception e) {
@@ -133,7 +135,7 @@ public class ObjectMapping {
 
         try {
             if (_friendlyNameOriginal!=null) {
-                newFriendlyName = String.format(_friendlyNameOriginal,params);
+                newFriendlyName = String.format(_friendlyNameOriginal,(Object[])params);
             }
         }
         catch (Exception e) {

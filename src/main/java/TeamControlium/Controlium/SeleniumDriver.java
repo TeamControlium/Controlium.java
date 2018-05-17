@@ -2,6 +2,7 @@ package TeamControlium.Controlium;
 
 import TeamControlium.Utilities.Logger;
 
+import TeamControlium.Utilities.TestData;
 import org.apache.commons.lang3.time.StopWatch;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
@@ -34,16 +35,44 @@ public class SeleniumDriver {
     private Duration _findTimeout = null;
     private Duration _pollInterval = null;
     private Duration _pageLoadTimeout = null;
-    private final long defaultTimeout = 60000; // 1 Minute
-    private final long defaultPollInterval = 500; // 500mS
+    private static final long defaultTimeout = 60000; // 1 Minute
+    private static final long defaultPollInterval = 500; // 500mS
+    private Browsers _browser=null;
+    private Devices _device=null;
+    private String seleniumHost;
 
+    public SeleniumDriver(String seleniumHost,String device,String browser) {
+        commonConstructs();
+        Browsers.SetTestBrowser(browser);
+        Devices.SetTestDevice(device);
+        setSeleniumHost(seleniumHost);
+    }
+    public SeleniumDriver(String seleniumHost) {
+        commonConstructs();
+        Browsers.SetTestBrowser();
+        Devices.SetTestDevice();
+        setSeleniumHost(null);
+    }
+    public SeleniumDriver(String device,String browser) {
+        commonConstructs();
+        Browsers.SetTestBrowser(browser);
+        Devices.SetTestDevice(device);
+        setSeleniumHost(seleniumHost);
+    }
     public SeleniumDriver() {
+        commonConstructs();
+        Browsers.SetTestBrowser();
+        Devices.SetTestDevice();
+        setSeleniumHost(null);
+    }
+
+    private void commonConstructs() {
         // Initialise defaults
         setFindTimeout(Duration.ofMillis(defaultTimeout));
         setPollInterval(Duration.ofMillis(defaultPollInterval));
         setPageLoadTimeout(Duration.ofMillis(defaultTimeout));
-
     }
+
 
     // PROPERTIES
     public Duration setFindTimeout(Duration findTimeout) { _findTimeout = findTimeout; return getElementFindTimeout();}
@@ -60,16 +89,39 @@ public class SeleniumDriver {
     }
     public Duration getPageLoadTimeout() { return _pageLoadTimeout;}
 
-    public HTMLElement FindElement(ObjectMapping objectMapping) { return FindElement(null,objectMapping, false, false, getElementFindTimeout(), getPollInterval(), false);}
-    public HTMLElement FindElement(ObjectMapping objectMapping,boolean waitUntilStable) { return FindElement(null,objectMapping, false, false, getElementFindTimeout(), getPollInterval(), waitUntilStable);}
-    public HTMLElement FindElement(ObjectMapping objectMapping,Duration timeout) { return FindElement(null,objectMapping, false, false, timeout, getPollInterval(), false);}
-    public HTMLElement FindElement(ObjectMapping objectMapping,Duration timeout,boolean waitUntilStable) { return FindElement(null,objectMapping, false, false, timeout, getPollInterval(), waitUntilStable);}
-    public HTMLElement FindElement(ObjectMapping objectMapping,Duration timeout,Duration pollInterval) { return FindElement(null,objectMapping, false, false, timeout, pollInterval, false);}
-    public HTMLElement FindElement(ObjectMapping objectMapping,Duration timeout,Duration pollInterval,boolean waitUntilStable) { return FindElement(null,objectMapping, false, false, timeout, pollInterval, waitUntilStable);}
+    public Browsers getBrowser() { return _browser; }
+    public Browsers setBrowser(Browsers browser) { _browser=browser; return getBrowser();}
+
+    public Browsers getDevice() { return _browser; }
+    public Browsers setDevice(Devices device) { _device=device; return getDevice();}
 
 
-    public HTMLElement FindElement(ObjectMapping objectMapping, boolean allowMultipleMatches,boolean waitUntilSingle, Duration timeout, Duration pollInterval, boolean waitUntilStable) { return FindElement(null,objectMapping, allowMultipleMatches, waitUntilSingle, timeout, pollInterval, waitUntilStable);}
-    public HTMLElement FindElement(HTMLElement parentElement,ObjectMapping objectMapping, boolean allowMultipleMatches,boolean waitUntilSingle, Duration timeout, Duration pollInterval, boolean waitUntilStable) {
+    public HTMLElement findElement(ObjectMapping objectMapping) { return findElement(null,objectMapping, false, false, getElementFindTimeout(), getPollInterval(), false);}
+    public HTMLElement findElement(ObjectMapping objectMapping,boolean waitUntilStable) { return findElement(null,objectMapping, false, false, getElementFindTimeout(), getPollInterval(), waitUntilStable);}
+    public HTMLElement findElement(ObjectMapping objectMapping,Duration timeout) { return findElement(null,objectMapping, false, false, timeout, getPollInterval(), false);}
+    public HTMLElement findElement(ObjectMapping objectMapping,Duration timeout,boolean waitUntilStable) { return findElement(null,objectMapping, false, false, timeout, getPollInterval(), waitUntilStable);}
+    public HTMLElement findElement(ObjectMapping objectMapping,Duration timeout,Duration pollInterval) { return findElement(null,objectMapping, false, false, timeout, pollInterval, false);}
+    public HTMLElement findElement(ObjectMapping objectMapping,Duration timeout,Duration pollInterval,boolean waitUntilStable) { return findElement(null,objectMapping, false, false, timeout, pollInterval, waitUntilStable);}
+    public HTMLElement findElement(ObjectMapping objectMapping,boolean waitUntilSingle, boolean waitUntilStable) { return findElement(null,objectMapping, false, waitUntilSingle, getElementFindTimeout(), getPollInterval(), waitUntilStable);}
+    public HTMLElement findElement(ObjectMapping objectMapping,boolean allowMultipleMatches,boolean waitUntilSingle,boolean waitUntilStable) { return findElement(null,objectMapping, allowMultipleMatches, waitUntilSingle, getElementFindTimeout(), getPollInterval(), waitUntilStable);}
+    public HTMLElement findElement(ObjectMapping objectMapping,boolean allowMultipleMatches,boolean waitUntilSingle,Duration timeout) { return findElement(null,objectMapping, allowMultipleMatches, waitUntilSingle, timeout, getPollInterval(), false);}
+    public HTMLElement findElement(ObjectMapping objectMapping,boolean allowMultipleMatches,boolean waitUntilSingle,Duration timeout,boolean waitUntilStable) { return findElement(null,objectMapping, allowMultipleMatches, waitUntilSingle, timeout, getPollInterval(), waitUntilStable);}
+    public HTMLElement findElement(ObjectMapping objectMapping,boolean allowMultipleMatches,boolean waitUntilSingle,Duration timeout,Duration pollInterval) { return findElement(null,objectMapping, allowMultipleMatches, waitUntilSingle, timeout, pollInterval, false);}
+    public HTMLElement findElement(ObjectMapping objectMapping, boolean allowMultipleMatches,boolean waitUntilSingle, Duration timeout, Duration pollInterval, boolean waitUntilStable) { return findElement(null,objectMapping, allowMultipleMatches, waitUntilSingle, timeout, pollInterval, waitUntilStable);}
+    public HTMLElement findElement(HTMLElement parentElement,ObjectMapping objectMapping) { return findElement(parentElement,objectMapping, false, false, getElementFindTimeout(), getPollInterval(), false);}
+    public HTMLElement findElement(HTMLElement parentElement,ObjectMapping objectMapping,boolean waitUntilStable) { return findElement(parentElement,objectMapping, false, false, getElementFindTimeout(), getPollInterval(), waitUntilStable);}
+    public HTMLElement findElement(HTMLElement parentElement,ObjectMapping objectMapping,boolean waitUntilSingle, boolean waitUntilStable) { return findElement(parentElement,objectMapping, false, waitUntilSingle, getElementFindTimeout(), getPollInterval(), waitUntilStable);}
+    public HTMLElement findElement(HTMLElement parentElement,ObjectMapping objectMapping,Duration timeout) { return findElement(parentElement,objectMapping, false, false, timeout, getPollInterval(), false);}
+    public HTMLElement findElement(HTMLElement parentElement,ObjectMapping objectMapping,Duration timeout,boolean waitUntilStable) { return findElement(parentElement,objectMapping, false, false, timeout, getPollInterval(), waitUntilStable);}
+    public HTMLElement findElement(HTMLElement parentElement,ObjectMapping objectMapping,Duration timeout,Duration pollInterval) { return findElement(parentElement,objectMapping, false, false, timeout, pollInterval, false);}
+    public HTMLElement findElement(HTMLElement parentElement,ObjectMapping objectMapping,Duration timeout,Duration pollInterval,boolean waitUntilStable) { return findElement(parentElement,objectMapping, false, false, timeout, pollInterval, waitUntilStable);}
+    public HTMLElement findElement(HTMLElement parentElement,ObjectMapping objectMapping,boolean allowMultipleMatches,boolean waitUntilSingle,boolean waitUntilStable) { return findElement(parentElement,objectMapping, allowMultipleMatches, waitUntilSingle, getElementFindTimeout(), getPollInterval(), waitUntilStable);}
+    public HTMLElement findElement(HTMLElement parentElement,ObjectMapping objectMapping,boolean allowMultipleMatches,boolean waitUntilSingle,Duration timeout) { return findElement(parentElement,objectMapping, allowMultipleMatches, waitUntilSingle, timeout, getPollInterval(), false);}
+    public HTMLElement findElement(HTMLElement parentElement,ObjectMapping objectMapping,boolean allowMultipleMatches,boolean waitUntilSingle,Duration timeout,boolean waitUntilStable) { return findElement(parentElement,objectMapping, allowMultipleMatches, waitUntilSingle, timeout, getPollInterval(), waitUntilStable);}
+    public HTMLElement findElement(HTMLElement parentElement,ObjectMapping objectMapping,boolean allowMultipleMatches,boolean waitUntilSingle,Duration timeout,Duration pollInterval) { return findElement(parentElement,objectMapping, allowMultipleMatches, waitUntilSingle, timeout, pollInterval, false);}
+
+
+    public HTMLElement findElement(HTMLElement parentElement,ObjectMapping objectMapping, boolean allowMultipleMatches,boolean waitUntilSingle, Duration timeout, Duration pollInterval, boolean waitUntilStable) {
         List<HTMLElement> clauseResults = null;
         boolean multiLogShown=false;
         boolean showMultiMatches=true;
@@ -82,7 +134,7 @@ public class SeleniumDriver {
         long totalTimeoutMillis = timeout.toMillis();
         long pollIntervalMillis = pollInterval.toMillis();
 
-        Logger.WriteLine(Logger.LogLevels.TestDebug, "Timeout - %s",DurationFormatted(timeout));
+        Logger.WriteLine(Logger.LogLevels.TestDebug, "Timeout - %s", durationFormatted(timeout));
 
         while (waitUntilStable && !isStable) {
 
@@ -174,7 +226,7 @@ public class SeleniumDriver {
     private List<HTMLElement> getHtmlElements(HTMLElement parentElement, ObjectMapping objectMapping, boolean allowMultipleMatches, boolean waitUntilSingle, boolean showMultiFound, long totalTimeoutMillis, long pollIntervalMillis, StopWatch timer) {
         List<HTMLElement> clauseResults = new ArrayList<HTMLElement>();
         while (clauseResults.size() == 0 || (clauseResults.size() != 1 && !allowMultipleMatches && waitUntilSingle)) {
-            clauseResults = FindElements(parentElement, objectMapping);
+            clauseResults = findElements(parentElement, objectMapping);
             if (clauseResults.size() == 0 || (clauseResults.size() != 1 && !allowMultipleMatches && waitUntilSingle)) {
                 if (clauseResults.size() > 0 && showMultiFound) {
                     Logger.WriteLine(Logger.LogLevels.TestDebug, "Found %d elements matching [%s].  Waiting until only a single element is found...", clauseResults.size(), objectMapping.getActualFindLogic());
@@ -183,7 +235,7 @@ public class SeleniumDriver {
                 try {
                     Thread.sleep(pollIntervalMillis);
                 } catch (Exception e) {
-                    Logger.WriteLine(Logger.LogLevels.Error, "Thread.sleep threw an exception after %s so aborting", DurationFormatted(timer.getTime()));
+                    Logger.WriteLine(Logger.LogLevels.Error, "Thread.sleep threw an exception after %s so aborting", durationFormatted(timer.getTime()));
                     throw new RuntimeException(String.format("Exception thrown while thread sleeping during Find Element (for [%s]) poll interval!", objectMapping.getFriendlyName()));
                 }
                 if (timer.getTime() >= totalTimeoutMillis) break;
@@ -192,7 +244,7 @@ public class SeleniumDriver {
         return clauseResults;
     }
 
-    public List<HTMLElement> FindElements(HTMLElement parentElement, ObjectMapping mapping) {
+    public List<HTMLElement> findElements(HTMLElement parentElement, ObjectMapping mapping) {
 
         List<WebElement> foundElements;
         List<HTMLElement> returnElements = new ArrayList<HTMLElement>();
@@ -284,10 +336,32 @@ public class SeleniumDriver {
         Object dummy = executeJavaScript(Object.class,script,args);
     }
 
-    private String DurationFormatted(Duration duration) {
-        return DurationFormatted(duration.toMillis());
+    public static void resetSettings() {
     }
-    private String DurationFormatted(long millis) {
+
+    private void setSeleniumHost(String host) {
+        seleniumHost=host;
+        try {
+            String seleniumHostFromTestData = TestData.getItem(String.class, ConfigHost[0], ConfigHost[1]);
+            if (!seleniumHostFromTestData.isEmpty()) {
+                if (host!=null && !host.isEmpty()) {
+                    Logger.WriteLine(Logger.LogLevels.TestInformation, String.format("Selenium Host set in Test Data.  Overriding passed host with [%s] (Test data [%s.%s])",seleniumHostFromTestData, ConfigHost[0], ConfigHost[1]));
+                }
+                seleniumHost = seleniumHostFromTestData;
+            }
+        }
+        catch (Exception e) {
+            if (seleniumHost==null || seleniumHost.isEmpty()) {
+                Logger.WriteLine(Logger.LogLevels.TestInformation, String.format("Selenium Host not set in Test data ([%s.%s]). Default to local.)", ConfigHost[0], ConfigHost[1]));
+            }
+            seleniumHost="localhost";
+        }
+    }
+
+    private String durationFormatted(Duration duration) {
+        return durationFormatted(duration.toMillis());
+    }
+    private String durationFormatted(long millis) {
         long hours = TimeUnit.MILLISECONDS.toHours(millis);
         long minutes = TimeUnit.MILLISECONDS.toMinutes(millis) - (hours*60);
         long seconds = TimeUnit.MILLISECONDS.toSeconds(millis) - (hours*3600) - (minutes*60);
