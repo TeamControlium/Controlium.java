@@ -79,8 +79,8 @@ public class Devices {
             }
         } catch (Exception e) {
             if (device==null || device.isEmpty()) {
-                Logger.WriteLine(Logger.LogLevels.Error, String.format("Cannot get Device type setting from test data: [%s],[%s]. Error: %s", ConfigDevice[0], ConfigDevice[1], e.getMessage()));
-                throw new RuntimeException(String.format("Error getting setting [%s],[%s].", ConfigDevice[0], ConfigDevice[1]), e);
+                Logger.WriteLine(Logger.LogLevels.Error, String.format("Cannot get Device type setting from test data: [%s],[%s]. Defaulting to Windows", ConfigDevice[0], ConfigDevice[1]));
+                device = "Windows";
             }
         }
 

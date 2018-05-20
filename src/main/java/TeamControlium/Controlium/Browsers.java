@@ -108,7 +108,7 @@ public class Browsers {
         } catch (Exception e) {
             if (browser==null || browser.isEmpty()) {
                 Logger.WriteLine(Logger.LogLevels.Error, String.format("Cannot get Browser type setting from test data: [%s],[%s]. Defaulting to Chrome", ConfigBrowser[0], ConfigBrowser[1], e.getMessage()));
-                throw new RuntimeException(String.format("Error getting setting [%s],[%s].", ConfigBrowser[0], ConfigBrowser[1]), e);
+                browser="Chrome";
             }
         }
 

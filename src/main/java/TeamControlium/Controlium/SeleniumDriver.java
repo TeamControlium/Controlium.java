@@ -3,14 +3,31 @@ package TeamControlium.Controlium;
 import TeamControlium.Utilities.Logger;
 
 import TeamControlium.Utilities.TestData;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.time.StopWatch;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeDriverService;
+import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.edge.EdgeDriver;
+import org.openqa.selenium.edge.EdgeDriverService;
+import org.openqa.selenium.edge.EdgeOptions;
+import org.openqa.selenium.ie.InternetExplorerDriver;
+import org.openqa.selenium.ie.InternetExplorerDriverLogLevel;
+import org.openqa.selenium.ie.InternetExplorerDriverService;
+import org.openqa.selenium.ie.InternetExplorerOptions;
 
+import javax.swing.text.Utilities;
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -40,6 +57,10 @@ public class SeleniumDriver {
     private Browsers _browser=null;
     private Devices _device=null;
     private String seleniumHost;
+    private boolean isLocalSelenium=true;
+    private String seleniumServerFolder=null;
+    private boolean seleniumDebugMode=false;
+    private String seleniumLogFilename=null;
 
     public SeleniumDriver(String seleniumHost,String device,String browser) {
         commonConstructs();
@@ -58,12 +79,14 @@ public class SeleniumDriver {
         Browsers.SetTestBrowser(browser);
         Devices.SetTestDevice(device);
         setSeleniumHost(seleniumHost);
+        startOrConnectToSeleniumServer();
     }
     public SeleniumDriver() {
         commonConstructs();
         Browsers.SetTestBrowser();
         Devices.SetTestDevice();
         setSeleniumHost(null);
+        startOrConnectToSeleniumServer();
     }
 
     private void commonConstructs() {
@@ -71,6 +94,34 @@ public class SeleniumDriver {
         setFindTimeout(Duration.ofMillis(defaultTimeout));
         setPollInterval(Duration.ofMillis(defaultPollInterval));
         setPageLoadTimeout(Duration.ofMillis(defaultTimeout));
+
+        // Selenium Parameters
+        try {
+            seleniumServerFolder = TestData.getItem(String.class, SeleniumServerFolder[0], SeleniumServerFolder[1]);
+        }
+        catch (Exception e){
+            Logger.WriteLine(Logger.LogLevels.TestDebug, "Selenium Server Folder not set in TestData (%s.%s).  Defaulting to local",SeleniumServerFolder[0], SeleniumServerFolder[1]);
+            seleniumServerFolder = System.getProperty("user.dir");
+        }
+        Logger.WriteLine(Logger.LogLevels.TestInformation, "Selenium Server Folder [%s]",seleniumServerFolder);
+
+        try {
+            seleniumDebugMode = TeamControlium.Utilities.General.IsValueTrue(TestData.getItem(String.class, SeleniumDebugMode[0], SeleniumDebugMode[1]));
+        }
+        catch (Exception e){
+            Logger.WriteLine(Logger.LogLevels.TestDebug, "Selenium Server debug mode not set in TestData (%s.%s).  Defaulting to off",SeleniumDebugMode[0], SeleniumDebugMode[1]);
+            seleniumDebugMode=false;
+        }
+        Logger.WriteLine(Logger.LogLevels.TestInformation, "Selenium Debug Mode: [%s]",seleniumDebugMode?"on":"off");
+
+        try {
+            seleniumLogFilename = TestData.getItem(String.class, SeleniumLogFilename[0], SeleniumLogFilename[1]);
+        }
+        catch (Exception e){
+            Logger.WriteLine(Logger.LogLevels.TestDebug, "Selenium Log filename not set in TestData (%s.%s).  Defaulting to stdio (console)",SeleniumLogFilename[0], SeleniumLogFilename[1]);
+            seleniumLogFilename=null;
+        }
+        Logger.WriteLine(Logger.LogLevels.TestInformation, "Selenium Log filename: [%s]",seleniumLogFilename==null?"stdio (console)":seleniumLogFilename);
     }
 
 
@@ -223,27 +274,6 @@ public class SeleniumDriver {
         return clauseResults.get(0);
     }
 
-    private List<HTMLElement> getHtmlElements(HTMLElement parentElement, ObjectMapping objectMapping, boolean allowMultipleMatches, boolean waitUntilSingle, boolean showMultiFound, long totalTimeoutMillis, long pollIntervalMillis, StopWatch timer) {
-        List<HTMLElement> clauseResults = new ArrayList<HTMLElement>();
-        while (clauseResults.size() == 0 || (clauseResults.size() != 1 && !allowMultipleMatches && waitUntilSingle)) {
-            clauseResults = findElements(parentElement, objectMapping);
-            if (clauseResults.size() == 0 || (clauseResults.size() != 1 && !allowMultipleMatches && waitUntilSingle)) {
-                if (clauseResults.size() > 0 && showMultiFound) {
-                    Logger.WriteLine(Logger.LogLevels.TestDebug, "Found %d elements matching [%s].  Waiting until only a single element is found...", clauseResults.size(), objectMapping.getActualFindLogic());
-                    showMultiFound = false;
-                }
-                try {
-                    Thread.sleep(pollIntervalMillis);
-                } catch (Exception e) {
-                    Logger.WriteLine(Logger.LogLevels.Error, "Thread.sleep threw an exception after %s so aborting", durationFormatted(timer.getTime()));
-                    throw new RuntimeException(String.format("Exception thrown while thread sleeping during Find Element (for [%s]) poll interval!", objectMapping.getFriendlyName()));
-                }
-                if (timer.getTime() >= totalTimeoutMillis) break;
-            }
-        }
-        return clauseResults;
-    }
-
     public List<HTMLElement> findElements(HTMLElement parentElement, ObjectMapping mapping) {
 
         List<WebElement> foundElements;
@@ -336,7 +366,13 @@ public class SeleniumDriver {
         Object dummy = executeJavaScript(Object.class,script,args);
     }
 
-    public static void resetSettings() {
+
+    private void startOrConnectToSeleniumServer() {
+        if (isLocalSelenium) {
+            setupLocalRun();
+        } else {
+            throw new RuntimeException("Remote server execution mot yet implemented!");
+        }
     }
 
     private void setSeleniumHost(String host) {
@@ -355,6 +391,174 @@ public class SeleniumDriver {
                 Logger.WriteLine(Logger.LogLevels.TestInformation, String.format("Selenium Host not set in Test data ([%s.%s]). Default to local.)", ConfigHost[0], ConfigHost[1]));
             }
             seleniumHost="localhost";
+        }
+        isLocalSelenium = (seleniumHost.equalsIgnoreCase("localhost") || seleniumHost.equals("127.0.0.1"));
+    }
+
+    private void setupLocalRun() {
+        Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "Running Selenium locally");
+
+        try {
+            if (Browsers.isInternetExplorer()) {
+                //
+                // See https://code.google.com/p/selenium/issues/detail?id=4403
+                //
+                String executable="IEDriver.exe";
+                InternetExplorerOptions IEO = new InternetExplorerOptions();
+                IEO.destructivelyEnsureCleanSession();
+
+                setPathToDriverIfExistsAndIsExecutable(seleniumServerFolder, InternetExplorerDriverService.IE_DRIVER_EXE_PROPERTY,executable);
+                if (seleniumDebugMode)
+                    System.setProperty(InternetExplorerDriverService.IE_DRIVER_LOGLEVEL_PROPERTY, "INFO");
+
+
+                if (seleniumLogFilename != null) {
+                    Logger.WriteLine(Logger.LogLevels.FrameworkInformation, "Writing Selenium Server Output to: %s", seleniumLogFilename);
+                    System.setProperty(InternetExplorerDriverService.IE_DRIVER_LOGFILE_PROPERTY, CheckAndPreparSeleniumLogFile(seleniumLogFilename));
+                } else {
+                    Logger.WriteLine(Logger.LogLevels.FrameworkInformation, "Writing Selenium Server Output to console");
+                }
+
+                InternetExplorerDriverService service = InternetExplorerDriverService.createDefaultService();
+
+                IEO.setCapability("INTRODUCE_FLAKINESS_BY_IGNORING_SECURITY_DOMAINS", (boolean) true);  // Enabling this as part of #ITSD1-1126 - If any issues come back to request
+                Logger.WriteLine(Logger.LogLevels.TestInformation, "IE Browser being used.  Setting INTRODUCE_FLAKINESS_BY_IGNORING_SECURITY_DOMAINS active. #ITSD1-1126");
+                webDriver = new InternetExplorerDriver(service, IEO);
+            }
+            else if (Browsers.isChrome()) {
+                String executable = "ChromeDriver.exe";
+                ChromeOptions options = new ChromeOptions();
+
+
+
+                setPathToDriverIfExistsAndIsExecutable(seleniumServerFolder, ChromeDriverService.CHROME_DRIVER_EXE_PROPERTY,executable);
+                if (seleniumDebugMode) System.setProperty(ChromeDriverService.CHROME_DRIVER_VERBOSE_LOG_PROPERTY, "true");
+
+                if (seleniumLogFilename != null) {
+                    Logger.WriteLine(Logger.LogLevels.FrameworkInformation, "Writing Selenium Server Output to: %s", seleniumLogFilename);
+                    System.setProperty(ChromeDriverService.CHROME_DRIVER_LOG_PROPERTY, CheckAndPreparSeleniumLogFile(seleniumLogFilename));
+                } else {
+                    Logger.WriteLine(Logger.LogLevels.FrameworkInformation, "Writing Selenium Server Output to console");
+                }
+
+                webDriver = new ChromeDriver(ChromeDriverService.createDefaultService(), options);
+            }
+            else if (Browsers.isEdge()) {
+                String executable = "EdgeDriver.exe";
+                EdgeOptions options = new EdgeOptions();
+
+                setPathToDriverIfExistsAndIsExecutable(seleniumServerFolder, EdgeDriverService.EDGE_DRIVER_EXE_PROPERTY,executable);
+                if (seleniumDebugMode) System.setProperty(EdgeDriverService.EDGE_DRIVER_VERBOSE_LOG_PROPERTY, "true");
+
+                if (seleniumLogFilename != null) {
+                    Logger.WriteLine(Logger.LogLevels.FrameworkInformation, "Writing Selenium Server Output to: %s", seleniumLogFilename);
+                    System.setProperty(EdgeDriverService.EDGE_DRIVER_LOG_PROPERTY, CheckAndPreparSeleniumLogFile(seleniumLogFilename));
+                } else {
+                    Logger.WriteLine(Logger.LogLevels.FrameworkInformation, "Writing Selenium Server Output to console");
+                }
+
+                webDriver = new EdgeDriver(EdgeDriverService.createDefaultService(), options);
+            }
+            else {
+                throw new RuntimeException(String.format("Browser [%s] not yet implemented!",Browsers.getBrowserType().name()));
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(String.format("Error instantiating [%s] (%s)", Browsers.isChrome() ? "Chrome" : Browsers.isEdge() ? "Edge" : Browsers.isInternetExplorer() ? "Internet Explorer" : Browsers.isSafari() ? "Safari" : "UNKNOWN!", seleniumServerFolder));
+        }
+    }
+
+    private List<HTMLElement> getHtmlElements(HTMLElement parentElement, ObjectMapping objectMapping, boolean allowMultipleMatches, boolean waitUntilSingle, boolean showMultiFound, long totalTimeoutMillis, long pollIntervalMillis, StopWatch timer) {
+        List<HTMLElement> clauseResults = new ArrayList<HTMLElement>();
+        while (clauseResults.size() == 0 || (clauseResults.size() != 1 && !allowMultipleMatches && waitUntilSingle)) {
+            clauseResults = findElements(parentElement, objectMapping);
+            if (clauseResults.size() == 0 || (clauseResults.size() != 1 && !allowMultipleMatches && waitUntilSingle)) {
+                if (clauseResults.size() > 0 && showMultiFound) {
+                    Logger.WriteLine(Logger.LogLevels.TestDebug, "Found %d elements matching [%s].  Waiting until only a single element is found...", clauseResults.size(), objectMapping.getActualFindLogic());
+                    showMultiFound = false;
+                }
+                try {
+                    Thread.sleep(pollIntervalMillis);
+                } catch (Exception e) {
+                    Logger.WriteLine(Logger.LogLevels.Error, "Thread.sleep threw an exception after %s so aborting", durationFormatted(timer.getTime()));
+                    throw new RuntimeException(String.format("Exception thrown while thread sleeping during Find Element (for [%s]) poll interval!", objectMapping.getFriendlyName()));
+                }
+                if (timer.getTime() >= totalTimeoutMillis) break;
+            }
+        }
+        return clauseResults;
+    }
+
+
+    private void setPathToDriverIfExistsAndIsExecutable(final String pathToDriver, final String driverExeProperty,String executable) {
+        final File driver = new File(pathToDriver,executable);
+        if (driver.exists() && driver.canExecute()) {
+            System.setProperty(driverExeProperty, driver.getAbsolutePath());
+        } else {
+            throw new IllegalArgumentException(String.format("Driver not found or is not executable in %s", pathToDriver));
+        }
+    }
+
+    private String CheckAndPreparSeleniumLogFile(String SeleniumDebugFile) {
+        String seleniumDebugFile = SeleniumDebugFile;
+        String pathAndFile = "";
+
+        if (seleniumDebugFile==null || seleniumDebugFile.isEmpty())
+            return null;
+        else
+        {
+            //
+            // If path is relative, make it absolute..
+            //
+            final File debugFile = new File(seleniumDebugFile);
+            String seleniumDebugFileFolder = debugFile.getAbsolutePath();
+
+            // File path/name is passed on CMD line so remove all spaces
+            String seleniumDebugFileName = FilenameUtils.removeExtension(seleniumDebugFile);
+            String seleniumDebugFileExt = FilenameUtils.getExtension(seleniumDebugFile);
+            Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "SeleniumDebugFile: [%s]",seleniumDebugFile);
+            Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "seleniumDebugFileFolder: [%s]",seleniumDebugFileFolder);
+            Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "seleniumDebugFileName: [%s]",seleniumDebugFileName);
+            Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "seleniumDebugFileExt: [%s]",seleniumDebugFileExt);
+
+
+            if (seleniumDebugFileFolder==null || seleniumDebugFileFolder.isEmpty())  seleniumDebugFileFolder = System.getProperty("user.dir");
+
+            try
+            {
+                int TotalPathLength = seleniumDebugFileFolder.length() + seleniumDebugFileName.length() + seleniumDebugFileExt.length() + 2;
+                Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "Selenium Debug File - [%s %s.%s]", seleniumDebugFileFolder, seleniumDebugFileName, seleniumDebugFileExt);
+                Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "Selenium Debug File TotalPathLength = %d", TotalPathLength);
+                if (TotalPathLength > 248)
+                {
+                    //
+                    // Max path length is 248, so we need to fiddle....
+                    //
+                    if ((seleniumDebugFileFolder.length() - seleniumDebugFileName.length() - seleniumDebugFileExt.length() -2) > 248)
+                    {
+                        // Ok, we cant do it so bomb out.
+                        Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "seleniumDebugFileFolder length %d so cannot fix path length by truncating seleniumDebugFileName", seleniumDebugFileFolder.length());
+                        throw new RuntimeException(String.format("Cannot Selenium Debug file.  Full path [%d] would have been too long (Max 248 chars)",TotalPathLength));
+                    }
+                    else
+                    {
+                        Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "Reducing path length by truncating seleniumDebugFileName (length currently %d)", seleniumDebugFileName.length());
+                        // Ok, we can do it.  Just truncate the TestID the required length...
+                        seleniumDebugFileName = seleniumDebugFileName.substring(0, seleniumDebugFileName.length() - (TotalPathLength - 248));
+                        Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "Reduced to length %d", seleniumDebugFileName.length());
+                    }
+                }
+
+                pathAndFile = Paths.get(seleniumDebugFileFolder,(seleniumDebugFileName + seleniumDebugFileExt)).toString();
+
+                (new File(pathAndFile)).mkdirs();
+
+                Files.write(Paths.get(pathAndFile), Arrays.asList("TeamControlium Selenium Debug File"));
+                return pathAndFile;
+            }
+            catch (Exception ex)
+            {
+                throw new RuntimeException(String.format("Error creating Selenium Debug information file (%s): %s", pathAndFile,ex.getMessage()));
+            }
         }
     }
 
