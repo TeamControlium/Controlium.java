@@ -5,6 +5,7 @@ import TeamControlium.Utilities.Logger;
 import TeamControlium.Utilities.TestData;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.time.StopWatch;
+import org.junit.jupiter.api.Assertions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
@@ -21,7 +22,9 @@ import org.openqa.selenium.ie.InternetExplorerDriverService;
 import org.openqa.selenium.ie.InternetExplorerOptions;
 
 import javax.swing.text.Utilities;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -63,33 +66,31 @@ public class SeleniumDriver {
     private String seleniumLogFilename=null;
 
     public SeleniumDriver(String seleniumHost,String device,String browser) {
-        commonConstructs();
-        Browsers.SetTestBrowser(browser);
-        Devices.SetTestDevice(device);
-        setSeleniumHost(seleniumHost);
+        commonConstructs(false,seleniumHost,device,browser);
     }
     public SeleniumDriver(String seleniumHost) {
-        commonConstructs();
-        Browsers.SetTestBrowser();
-        Devices.SetTestDevice();
-        setSeleniumHost(null);
+        commonConstructs(false,seleniumHost,null,null);
     }
     public SeleniumDriver(String device,String browser) {
-        commonConstructs();
-        Browsers.SetTestBrowser(browser);
-        Devices.SetTestDevice(device);
-        setSeleniumHost(seleniumHost);
-        startOrConnectToSeleniumServer();
+        commonConstructs(false,null,device,browser);
     }
     public SeleniumDriver() {
-        commonConstructs();
-        Browsers.SetTestBrowser();
-        Devices.SetTestDevice();
-        setSeleniumHost(null);
-        startOrConnectToSeleniumServer();
+        commonConstructs(false,null,null,null);
+    }
+    public SeleniumDriver(boolean killDriverInstancesFirst,String seleniumHost,String device,String browser) {
+        commonConstructs(killDriverInstancesFirst,seleniumHost,device,browser);
+    }
+    public SeleniumDriver(boolean killDriverInstancesFirst,String seleniumHost) {
+        commonConstructs(killDriverInstancesFirst,seleniumHost,null,null);
+    }
+    public SeleniumDriver(boolean killDriverInstancesFirst,String device,String browser) {
+        commonConstructs(killDriverInstancesFirst,null,device,browser);
+    }
+    public SeleniumDriver(boolean killDriverInstancesFirst) {
+        commonConstructs(killDriverInstancesFirst,null,null,null);
     }
 
-    private void commonConstructs() {
+    private void commonConstructs(boolean killFirst, String seleniumHost,String device,String browser) {
         // Initialise defaults
         setFindTimeout(Duration.ofMillis(defaultTimeout));
         setPollInterval(Duration.ofMillis(defaultPollInterval));
@@ -122,6 +123,13 @@ public class SeleniumDriver {
             seleniumLogFilename=null;
         }
         Logger.WriteLine(Logger.LogLevels.TestInformation, "Selenium Log filename: [%s]",seleniumLogFilename==null?"stdio (console)":seleniumLogFilename);
+
+        Browsers.SetTestBrowser(browser);
+        Devices.SetTestDevice(device);
+
+        setSeleniumHost(seleniumHost);
+
+        startOrConnectToSeleniumServer(killFirst);
     }
 
 
@@ -367,9 +375,9 @@ public class SeleniumDriver {
     }
 
 
-    private void startOrConnectToSeleniumServer() {
+    private void startOrConnectToSeleniumServer(boolean killFirst) {
         if (isLocalSelenium) {
-            setupLocalRun();
+            setupLocalRun(killFirst);
         } else {
             throw new RuntimeException("Remote server execution mot yet implemented!");
         }
@@ -395,7 +403,7 @@ public class SeleniumDriver {
         isLocalSelenium = (seleniumHost.equalsIgnoreCase("localhost") || seleniumHost.equals("127.0.0.1"));
     }
 
-    private void setupLocalRun() {
+    private void setupLocalRun(boolean killFirst) {
         Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "Running Selenium locally");
 
         try {
@@ -441,6 +449,7 @@ public class SeleniumDriver {
                     Logger.WriteLine(Logger.LogLevels.FrameworkInformation, "Writing Selenium Server Output to console");
                 }
 
+                if (killFirst) killAllProcesses(executable);
                 webDriver = new ChromeDriver(ChromeDriverService.createDefaultService(), options);
             }
             else if (Browsers.isEdge()) {
@@ -573,6 +582,62 @@ public class SeleniumDriver {
         return String.format("%02d:%02d:%02d.%03d",hours,minutes,seconds,milliseconds);
     }
 
+    private void killAllProcesses(String name) {
+        int matchingProcessCount = getProcessCount(name);
+        int newProcessCount=0;
+        String line;
+        while (matchingProcessCount>0) {
+            try {
+                if (matchingProcessCount >= 0) {
+                    Process p = Runtime.getRuntime().exec(System.getenv("windir") + String.format("\\system32\\" + "taskkill.exe /F /IM %s", name));
+                    BufferedReader input = new BufferedReader(new InputStreamReader(p.getInputStream()));
+                    while ((line = input.readLine()) != null) {
+                        int g = 99;
+                    }
+                    input.close();
+                }
+            } catch (Exception err) {
+                Assertions.fail(String.format("Error killing [%s] processes ", name), err);
+            }
+            newProcessCount = getProcessCount(name);
+            if (newProcessCount == matchingProcessCount) {
+                Assertions.fail(String.format("Error killing [%s] processes.  Did not kill processes! ", name));
+            }
+            matchingProcessCount=newProcessCount;
+        }
+    }
+
+
+    private int getProcessCount(String name) {
+        int count=0;
+        List<String[]> processInstanceCount = getProcessList();
+
+        for(String[] line : getProcessList()) {
+            if (line[0].equalsIgnoreCase(name)) count++;
+        }
+        return count;
+    }
+
+    private List<String[]> getProcessList() {
+        boolean startLogging = false;
+        // MAT GET THIS WORKING - Driver executable filesnames.........
+
+        List<String[]> list = new ArrayList<String[]>();
+        try {
+            String line;
+            //Process p = Runtime.getRuntime().exec("ps -e");
+            Process p = Runtime.getRuntime().exec (System.getenv("windir") +"\\system32\\"+"tasklist.exe");
+            BufferedReader input = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            while ((line = input.readLine()) != null) {
+                String[] arrayLine = line.split("\\s+");
+                if (startLogging) list.add(arrayLine);
+                if (line.contains("=======")) startLogging=true;
+            }
+            input.close();
+        } catch (Exception err) {Assertions.fail("Error getting process list: ",err);
+        }
+        return list;
+    }
 
 }
 
