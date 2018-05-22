@@ -6,10 +6,27 @@ import TeamControlium.Utilities.TestData;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.time.StopWatch;
 import org.junit.jupiter.api.Assertions;
-import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
+
+import javax.management.RuntimeMBeanException;
+import javax.swing.text.Utilities;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.InputStreamReader;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import java.net.ConnectException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeDriverService;
 import org.openqa.selenium.chrome.ChromeOptions;
@@ -20,20 +37,6 @@ import org.openqa.selenium.ie.InternetExplorerDriver;
 import org.openqa.selenium.ie.InternetExplorerDriverLogLevel;
 import org.openqa.selenium.ie.InternetExplorerDriverService;
 import org.openqa.selenium.ie.InternetExplorerOptions;
-
-import javax.swing.text.Utilities;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.InputStreamReader;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
 
 public class SeleniumDriver {
     // CONSTANT FIELDS
@@ -50,7 +53,6 @@ public class SeleniumDriver {
     private final String[] SeleniumLogFilename = { "Selenium", "LogFile" };                   // Path and file for Selenium Log file.  Default is the console window
 
     private WebDriver webDriver;
-
 
     private Duration _findTimeout = null;
     private Duration _pollInterval = null;
@@ -155,6 +157,7 @@ public class SeleniumDriver {
     public Browsers setDevice(Devices device) { _device=device; return getDevice();}
 
 
+
     public HTMLElement findElement(ObjectMapping objectMapping) { return findElement(null,objectMapping, false, false, getElementFindTimeout(), getPollInterval(), false);}
     public HTMLElement findElement(ObjectMapping objectMapping,boolean waitUntilStable) { return findElement(null,objectMapping, false, false, getElementFindTimeout(), getPollInterval(), waitUntilStable);}
     public HTMLElement findElement(ObjectMapping objectMapping,Duration timeout) { return findElement(null,objectMapping, false, false, timeout, getPollInterval(), false);}
@@ -185,7 +188,6 @@ public class SeleniumDriver {
         boolean multiLogShown=false;
         boolean showMultiMatches=true;
         boolean isStable=false;
-
         //
         // We look after our own implicitWait (timeout) and poll interval rather that Selenium's as we are using our FindElements to find the element we want.  We use our
         // FindElements so that we can control if ONLY a single match is allowed (Selenium FindElement allows multiple matches silently - see By class implementation) and extra debug logging.
@@ -195,7 +197,7 @@ public class SeleniumDriver {
 
         Logger.WriteLine(Logger.LogLevels.TestDebug, "Timeout - %s", durationFormatted(timeout));
 
-        while (waitUntilStable && !isStable) {
+        while (true) {
 
             StopWatch timer = StopWatch.createStarted();
 
@@ -234,6 +236,7 @@ public class SeleniumDriver {
                 throw new RuntimeException(errorText);
             }
 
+            // At this point we have a single match OR multiple matches
             if (showMultiMatches && !waitUntilSingle) {
                 Logger.WriteLine(Logger.LogLevels.TestDebug, "From [%s], find [%s (%s)] returned %d matches (%s multiple matches).",
                         (parentElement == null) ? "DOM Top Level" : parentElement.getMappingDetails().getFriendlyName(),
@@ -252,7 +255,7 @@ public class SeleniumDriver {
                             objectMapping.getFriendlyName(),
                             clauseResults.size(),
                             (allowMultipleMatches) ? "Allowing" : "Not");
-                    return clauseResults.get(0);
+                    break;
                 } else {
                     if (timer.getTime()>=totalTimeoutMillis) {
                         Logger.WriteLine(Logger.LogLevels.Error, "From [%s], find [%s (%s)] returned %d matches (%s multiple matches). We must wait until stable, element 0 is NOT stable and timeout reached so throwing",
@@ -277,16 +280,14 @@ public class SeleniumDriver {
                             (allowMultipleMatches) ? "Allowing" : "Not");
                 }
             }
-
         }
         return clauseResults.get(0);
     }
 
     public List<HTMLElement> findElements(HTMLElement parentElement, ObjectMapping mapping) {
 
-        List<WebElement> foundElements;
+        List<WebElement> foundElements=null;
         List<HTMLElement> returnElements = new ArrayList<HTMLElement>();
-
 
         if (mapping==null) {
             Logger.WriteLine(Logger.LogLevels.Error,"ObjectMapping = null!");
@@ -302,10 +303,14 @@ public class SeleniumDriver {
             Logger.WriteLine(Logger.LogLevels.FrameworkDebug,"Calling Selenium WebDriver findElements with By = [%s]",seleniumFindBy.toString());
             foundElements = (parentElement==null) ? webDriver.findElements(seleniumFindBy) : parentElement.getSeleniumnWebElement().findElements(seleniumFindBy);
         }
+        catch (WebDriverException e)
+        {
+            checkIfConnectionIssue(e);
+        }
         catch (Exception e) {
             if (parentElement==null) {
                 Logger.WriteLine(Logger.LogLevels.Error, "Selenium error finding elements using find logic [%s] ([%s)]: %s", seleniumFindBy.toString(), mapping.getFriendlyName(), e.toString());
-                throw new RuntimeException(String.format("Selenium error finding elements using find logic [%s] ([%s)]", seleniumFindBy.toString(), mapping.getFriendlyName()));
+                throw new RuntimeException(String.format("Selenium error finding elements using find logic [%s] ([%s)]", seleniumFindBy.toString(), mapping.getFriendlyName()),e);
             }
             else {
                 Logger.WriteLine(Logger.LogLevels.Error, "Selenium error finding elements offset from [%s (%s)] using find logic [%s] ([%s)]: %s",parentElement.getMappingDetails().getFriendlyName(),parentElement.getMappingDetails().getActualFindLogic(),seleniumFindBy.toString(), mapping.getFriendlyName(), e.toString());
@@ -344,11 +349,14 @@ public class SeleniumDriver {
     /// of executing Javascript in automated tests.
     public <T> T executeJavaScript(Class<T> type, String script, Object... args)
     {
-        Object result;
+        Object result=null;
         try
         {
             result = ((JavascriptExecutor)webDriver).executeScript(script, args);
-            return type.cast(result);
+        }
+        catch (WebDriverException e)
+        {
+            checkIfConnectionIssue(e);
         }
         catch (Exception ex)
         {
@@ -364,6 +372,7 @@ public class SeleniumDriver {
                 exceptionString = String.format("executeJavaScript(\"%s\"): %s",script, exceptionString);
             throw new RuntimeException(exceptionString,ex);
         }
+        return type.cast(result);
     }
 
     /// <summary>Injects and executes Javascript in the currently active Selenium browser. If Selenium throws an error, test is aborted.</summary>
@@ -371,9 +380,28 @@ public class SeleniumDriver {
     /// <param name="args">Any arguments passed in to the Javascript</param>
     public void executeJavaScriptNoReturnData(String script, Object[] args)
     {
-        Object dummy = executeJavaScript(Object.class,script,args);
+       Object dummy = executeJavaScript(Object.class,script,args);
     }
 
+    public void quit() {
+        try {
+            if (webDriver != null) {
+                webDriver.quit();
+            }
+        }
+        catch (Exception e) {};
+    }
+
+    public void finalize() {
+        //
+        // We use finalize here in full awareness that it MAY NOT be called and that it may be called after a full clean-up!  We are only doing this to prevent
+        // a ruckload of browsers accumulating!  As finalize is a terrible method to use, we use it VERY carefully!
+        //
+        try {
+            webDriver.quit();
+        }
+        catch (Exception e) {}
+    }
 
     private void startOrConnectToSeleniumServer(boolean killFirst) {
         if (isLocalSelenium) {
@@ -497,7 +525,6 @@ public class SeleniumDriver {
         return clauseResults;
     }
 
-
     private void setPathToDriverIfExistsAndIsExecutable(final String pathToDriver, final String driverExeProperty,String executable) {
         final File driver = new File(pathToDriver,executable);
         if (driver.exists() && driver.canExecute()) {
@@ -607,7 +634,6 @@ public class SeleniumDriver {
         }
     }
 
-
     private int getProcessCount(String name) {
         int count=0;
         List<String[]> processInstanceCount = getProcessList();
@@ -637,6 +663,31 @@ public class SeleniumDriver {
         } catch (Exception err) {Assertions.fail("Error getting process list: ",err);
         }
         return list;
+    }
+
+
+    private String CallingMethodDetails(StackTraceElement methodBase)
+    {
+        String methodName="";
+        if (methodBase != null)
+        {
+            methodName = methodBase.getMethodName();
+            if (methodName==null) methodName = "<Unknown>";
+        }
+        return String.format("%s",methodName);
+    }
+
+
+    private void checkIfConnectionIssue(WebDriverException e) throws RuntimeException {
+        StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+        StackTraceElement caller = stackTraceElements[2];
+        if (e.getCause().getClass()==ConnectException.class) {
+            throw new RuntimeException(String.format("Selenium Driver method [%s] called but Selenium WebDriver not connected!",CallingMethodDetails(caller)),e);
+        }
+        else
+        {
+            throw new RuntimeException(String.format("Selenium Driver method [%s] error using Selenium.  See inner exception.",CallingMethodDetails(caller)),e);
+        }
     }
 
 }
