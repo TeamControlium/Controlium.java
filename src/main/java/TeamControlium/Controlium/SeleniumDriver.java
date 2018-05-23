@@ -1,8 +1,8 @@
 package TeamControlium.Controlium;
 
-import TeamControlium.Utilities.Logger;
+import TeamControlium.Utilities.*;
 
-import TeamControlium.Utilities.TestData;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.time.StopWatch;
 import org.junit.jupiter.api.Assertions;
@@ -306,6 +306,7 @@ public class SeleniumDriver {
         catch (WebDriverException e)
         {
             checkIfConnectionIssue(e);
+            throw new RuntimeException("Selenium Driver error finding elements.  See inner exception.",e);
         }
         catch (Exception e) {
             if (parentElement==null) {
@@ -338,6 +339,30 @@ public class SeleniumDriver {
     }
 
 
+    public void gotoURL(String fullURLPath) {
+        try {
+            webDriver.navigate().to(fullURLPath);
+        }
+        catch (Exception e) {
+            Logger.WriteLine(Logger.LogLevels.Error, "Error browsing to [%s]: %s",(fullURLPath==null || fullURLPath.isEmpty())?"NO URL!!":fullURLPath,e.getMessage());
+            checkIfConnectionIssue(e);
+            throw e;
+        }
+    }
+
+    public String getPageTitle() {
+        try {
+            String title = webDriver.getTitle();
+            return (title==null?"":title);
+        }
+        catch (Exception e) {
+            Logger.WriteLine(Logger.LogLevels.Error, "Error getting window title: %s",e.getMessage());
+            checkIfConnectionIssue(e);
+            throw e;
+        }
+    }
+
+
     //////////// JAVASCRIPT EXECUTION
 
     /// <summary>Injects and executes Javascript in the currently active Selenium browser with no exception thrown. Javascript has return object which is passed back as a string</summary>
@@ -357,6 +382,7 @@ public class SeleniumDriver {
         catch (WebDriverException e)
         {
             checkIfConnectionIssue(e);
+            throw new RuntimeException("Selenium Driver error executing javascript.  See inner exception.",e);
         }
         catch (Exception ex)
         {
@@ -383,24 +409,115 @@ public class SeleniumDriver {
        Object dummy = executeJavaScript(Object.class,script,args);
     }
 
-    public void quit() {
-        try {
-            if (webDriver != null) {
-                webDriver.quit();
+
+    public String TakeScreenshot() { return TakeScreenshot(null);}
+    public String TakeScreenshot(String fileName)
+    {
+        String filename = null;
+        String filepath = null;
+
+        try
+        {
+            if (webDriver != null)
+            {
+                if (webDriver instanceof TakesScreenshot)
+                {
+                    try
+                    {
+                        fileName = TestData.getItem(String.class, "Screenshot", "Filename");
+                    }
+                    catch (Exception e){ }
+                    try
+                    {
+                        filepath = TestData.getItem(String.class, "Screenshot", "Filepath");
+                    }
+                    catch (Exception e) { }
+
+                    if (filename == null) filename = (fileName==null)?"Screenshot" : fileName;
+
+                    //
+                    // Ensure filename friendly
+                    //
+                    //filename = new Regex(string.Format("[{0}]", Regex.Escape(new string(Path.GetInvalidFileNameChars()) + new string(Path.GetInvalidPathChars())))).Replace(filename, "");
+                    if (filepath == null)
+                    {
+
+                        filename = Paths.get(System.getProperty("user.dir"),"images", filename + ".jpg").toString();
+                    }
+                    else
+                    {
+                        filename = Paths.get(filepath, filename + ".jpg").toString();
+                    }
+                    File screenshot=null;
+                    try {
+                        screenshot = ((TakesScreenshot) webDriver).getScreenshotAs(OutputType.FILE);
+                        Logger.WriteLine(Logger.LogLevels.TestInformation, "Screenshot - {0}", filename);
+                    }
+                    catch (Exception e) {
+                        checkIfConnectionIssue(e);
+                        throw new RuntimeException("Selenium Driver error taking screenshot.  See inner exception.",e);
+                    }
+
+                    try {
+                        FileUtils.copyFile(screenshot, new File(filename));
+                    }
+                    catch (Exception e) {
+                        Logger.WriteLine(Logger.LogLevels.Error, "Saving Screenshot - %s: %s", filename,e);
+                    }
+                    return filename;
+                }
+                    else
+                {
+                    throw new RuntimeException("Error taking webDriver does not implement TakesScreenshot!  Is it RemoteWebDriver?");
+                }
+            }
+            else
+            {
+                Logger.WriteLine(Logger.LogLevels.TestInformation,"webDriver is null!  Unable to take screenshot.");
             }
         }
-        catch (Exception e) {};
+        catch (Exception ex)
+        {
+            Logger.WriteLine(Logger.LogLevels.TestInformation, "Exception saving screenshot [{0}]", filename==null?"filename null!":filename);
+            Logger.WriteLine(Logger.LogLevels.TestInformation, "> {0}", ex);
+        }
+        return "";
     }
 
-    public void finalize() {
-        //
-        // We use finalize here in full awareness that it MAY NOT be called and that it may be called after a full clean-up!  We are only doing this to prevent
-        // a ruckload of browsers accumulating!  As finalize is a terrible method to use, we use it VERY carefully!
-        //
+
+    public void CloseDriver() {
+        boolean TakeScreenshotOption = false;
         try {
-            webDriver.quit();
+            try {
+                TakeScreenshotOption = General.IsValueTrue(TestData.getItem(String.class, "Debug", "TakeScreenshot"));
+            } catch (Exception ex) {
+                Logger.WriteLine(Logger.LogLevels.TestInformation, "RunCategory Option [Debug, TakeScreenshot] Exception ignored, defaults to false: %s", ex);
+            }
+
+
+            if (TakeScreenshotOption) {
+                Logger.WriteLine(Logger.LogLevels.FrameworkInformation, "Debug.TakeScreenshot = {0} - Taking screenshot...", TakeScreenshotOption);
+                TakeScreenshot(Detokenizer.ProcessTokensInString("{Date;today;yy-MM-dd_HH-mm-ssFFF}"));
+            } else
+                Logger.WriteLine(Logger.LogLevels.FrameworkInformation, "Debug.TakeScreenshot = {0} - NOT Taking screenshot...", TakeScreenshotOption);
+
+            try {
+                if (webDriver != null) webDriver.quit();
+                webDriver = null;
+            } catch (Exception e) {
+                try {
+                    checkIfConnectionIssue(e);
+                    throw new RuntimeException("Selenium Driver error closing Selenium.  See inner exception.", e);
+                } catch (Exception ex) {
+                    Logger.WriteLine(Logger.LogLevels.Error, "Ignoring Error: %s", ex);
+                    webDriver = null;
+                }
+            }
         }
-        catch (Exception e) {}
+        catch (Exception e) {
+            Logger.WriteLine(Logger.LogLevels.Error,String.format("Error closing selenium driver: %s",e.getMessage()));
+            // Dummy to be sure we dont pollute results!
+        }
     }
 
     private void startOrConnectToSeleniumServer(boolean killFirst) {
@@ -677,16 +794,11 @@ public class SeleniumDriver {
         return String.format("%s",methodName);
     }
 
-
-    private void checkIfConnectionIssue(WebDriverException e) throws RuntimeException {
+    private void checkIfConnectionIssue(Exception e) throws RuntimeException {
         StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
         StackTraceElement caller = stackTraceElements[2];
         if (e.getCause().getClass()==ConnectException.class) {
             throw new RuntimeException(String.format("Selenium Driver method [%s] called but Selenium WebDriver not connected!",CallingMethodDetails(caller)),e);
-        }
-        else
-        {
-            throw new RuntimeException(String.format("Selenium Driver method [%s] error using Selenium.  See inner exception.",CallingMethodDetails(caller)),e);
         }
     }
 
