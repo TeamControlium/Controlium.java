@@ -32,11 +32,11 @@ public class ObjectMapping {
     {
         this._findLogicOriginal = findLogic;
         _friendlyNameOriginal = (friendlyName==null) ? findLogic : friendlyName;
-        _friendlyName = null;
+        _friendlyName = _friendlyNameOriginal;
     }
 
 
-    public ByType getMappingType() { return _mappingType; }
+    public ByType getMappingType() { if (_mappingType==null) processFindLogic((_findLogicActual==null)?_findLogicOriginal:_findLogicActual); return _mappingType; }
 
 
 
@@ -97,17 +97,7 @@ public class ObjectMapping {
     public ObjectMapping copy() {
         try {
             //
-            // We do a dodgy here.  When copying a mapping we want to reset the Actual Find Logic as the copy has not yet been used
-            // and may be part of being built (IE. from FindElements).  So we want to clear the Actual Find Logic which cannot be done
-            // publically (obviously!).  So, we temporarily clear the actual find logic and then put it back after the clone...
-            //
-            // Note.  In Java Strings are immutable, so doing the assignment works and is safe.  Note though that this no way
-            //        thread-safe!!
-            //
-            String originalActualFindLogic = _findLogicActual;
-            _findLogicActual=null;
-            ObjectMapping clone = (ObjectMapping)this.clone();
-            _findLogicActual = originalActualFindLogic;
+            ObjectMapping clone = new ObjectMapping(_findLogicActual,_friendlyName);
             return clone;
         }
         catch (Exception e) {

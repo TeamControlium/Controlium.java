@@ -197,9 +197,10 @@ public class SeleniumDriver {
 
         Logger.WriteLine(Logger.LogLevels.TestDebug, "Timeout - %s", durationFormatted(timeout));
 
+        StopWatch timer = StopWatch.createStarted();
         while (true) {
 
-            StopWatch timer = StopWatch.createStarted();
+
 
             // Loop while:-
             //  - we have no find results
@@ -226,7 +227,7 @@ public class SeleniumDriver {
 
             }
             if (clauseResults.size() > 1 && !allowMultipleMatches) {
-                String errorText = String.format("Found %d matching elements using ([%s] - %s) from [%s] (Waited upto %dmS). allowMultipleMatches=false so error!",
+                String errorText = String.format("Found %d matching elements using [%s] ([%s]) from [%s]. Not allowing mutiple matches and timeout reached after [%dmS]",
                         clauseResults.size(),
                         objectMapping.getActualFindLogic(),
                         objectMapping.getFriendlyName(),
@@ -258,18 +259,18 @@ public class SeleniumDriver {
                     break;
                 } else {
                     if (timer.getTime()>=totalTimeoutMillis) {
-                        Logger.WriteLine(Logger.LogLevels.Error, "From [%s], find [%s (%s)] returned %d matches (%s multiple matches). We must wait until stable, element 0 is NOT stable and timeout reached so throwing",
+                        Logger.WriteLine(Logger.LogLevels.Error, "From [%s], find [%s (%s)] returned %d matches (%sllowing multiple matches). Element NOT stable after timeout reached so throwing",
                                 (parentElement == null) ? "DOM Top Level" : parentElement.getMappingDetails().getFriendlyName(),
                                 objectMapping.getActualFindLogic(),
                                 objectMapping.getFriendlyName(),
                                 clauseResults.size(),
-                                (allowMultipleMatches) ? "Allowing" : "Not");
-                        throw new RuntimeException(String.format("From [%s], find [%s (%s)] returned %d matches (%s multiple matches). We must wait until stable and element 0 NOT stable and timeout reached after %dmS.",
+                                (allowMultipleMatches) ? "A" : "Not A");
+                        throw new RuntimeException(String.format("From [%s], find [%s (%s)] returned %d matches (%sllowing multiple matches). Element NOT stable after timeout reached ([%dmS]).",
                                 (parentElement == null) ? "DOM Top Level" : parentElement.getMappingDetails().getFriendlyName(),
                                 objectMapping.getActualFindLogic(),
                                 objectMapping.getFriendlyName(),
                                 clauseResults.size(),
-                                (allowMultipleMatches) ? "Allowing" : "Not",
+                                (allowMultipleMatches) ? "A" : "Not A",
                                 timer.getTime()));
                     }
                     Logger.WriteLine(Logger.LogLevels.TestDebug, "From [%s], find [%s (%s)] returned %d matches (%s multiple matches).  Element 0 is NOT stable and we must wait until stable...",
@@ -279,6 +280,8 @@ public class SeleniumDriver {
                             clauseResults.size(),
                             (allowMultipleMatches) ? "Allowing" : "Not");
                 }
+            } else {
+                break;
             }
         }
         return clauseResults.get(0);
@@ -301,7 +304,15 @@ public class SeleniumDriver {
 
         try {
             Logger.WriteLine(Logger.LogLevels.FrameworkDebug,"Calling Selenium WebDriver findElements with By = [%s]",seleniumFindBy.toString());
-            foundElements = (parentElement==null) ? webDriver.findElements(seleniumFindBy) : parentElement.getSeleniumnWebElement().findElements(seleniumFindBy);
+            if (parentElement==null) {
+                foundElements = webDriver.findElements(seleniumFindBy);
+            }
+            else {
+                foundElements=parentElement.getSeleniumnWebElement().findElements(seleniumFindBy);
+            }
+        }
+        catch (InvalidSelectorException e) {
+            throw new RuntimeException(String.format("Selenium Driver error. Find Logic [%s] for [%s] is invalid!",mapping.getActualFindLogic(),mapping.getFriendlyName(),e));
         }
         catch (WebDriverException e)
         {
@@ -320,9 +331,9 @@ public class SeleniumDriver {
         }
 
         if (parentElement==null)
-            Logger.WriteLine(Logger.LogLevels.TestInformation,"Found [%d] elements matching [%s] (%s)",foundElements.size(),mapping.getOriginalFindLogic(),mapping.getFriendlyName());
+            Logger.WriteLine(Logger.LogLevels.FrameworkDebug,"Found [%d] elements matching [%s] (%s)",foundElements.size(),mapping.getOriginalFindLogic(),mapping.getFriendlyName());
         else
-            Logger.WriteLine(Logger.LogLevels.TestInformation,"Found [%d] elements matching [%s] (%s) offset from [%s]",foundElements.size(),mapping.getOriginalFindLogic(),mapping.getFriendlyName(),parentElement.getMappingDetails().getFriendlyName());
+            Logger.WriteLine(Logger.LogLevels.FrameworkDebug,"Found [%d] elements matching [%s] (%s) offset from [%s]",foundElements.size(),mapping.getOriginalFindLogic(),mapping.getFriendlyName(),parentElement.getMappingDetails().getFriendlyName());
 
 
         for(int index = 0;index<foundElements.size();index++) {
@@ -797,7 +808,7 @@ public class SeleniumDriver {
     private void checkIfConnectionIssue(Exception e) throws RuntimeException {
         StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
         StackTraceElement caller = stackTraceElements[2];
-        if (e.getCause().getClass()==ConnectException.class) {
+        if (e.getClass()==ConnectException.class) {
             throw new RuntimeException(String.format("Selenium Driver method [%s] called but Selenium WebDriver not connected!",CallingMethodDetails(caller)),e);
         }
     }

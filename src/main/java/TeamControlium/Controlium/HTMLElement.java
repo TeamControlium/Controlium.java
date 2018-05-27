@@ -39,8 +39,9 @@ public class HTMLElement {
 
     public HTMLElement(Object parent, WebElement underlyingWebElement, ObjectMapping mapping) {
         setParentOfThisElement(parent);
-        setSeleniumWebElement(underlyingWebElement);
         setMappingDetails(mapping);
+        setSeleniumWebElement(underlyingWebElement);
+
     }
 
 
