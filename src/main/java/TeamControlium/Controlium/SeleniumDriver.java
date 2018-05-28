@@ -7,18 +7,11 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.time.StopWatch;
 import org.junit.jupiter.api.Assertions;
 
-import javax.management.RuntimeMBeanException;
-import javax.swing.text.Utilities;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
 import java.net.ConnectException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -34,7 +27,6 @@ import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.edge.EdgeDriverService;
 import org.openqa.selenium.edge.EdgeOptions;
 import org.openqa.selenium.ie.InternetExplorerDriver;
-import org.openqa.selenium.ie.InternetExplorerDriverLogLevel;
 import org.openqa.selenium.ie.InternetExplorerDriverService;
 import org.openqa.selenium.ie.InternetExplorerOptions;
 
@@ -156,6 +148,22 @@ public class SeleniumDriver {
     public Browsers getDevice() { return _browser; }
     public Browsers setDevice(Devices device) { _device=device; return getDevice();}
 
+    public void setIFrame(HTMLElement htmlElement) {
+        WebElement webElement = ((WebElement)htmlElement.getUnderlyingWebElement());
+        String tag = webElement.getTagName();
+        if (tag.equalsIgnoreCase("iframe")) {
+            try {
+                webDriver.switchTo().frame(webElement);
+            }
+            catch (Exception e) {
+                throw new RuntimeException(String.format("Error setting element [%s] ([%s]) as iframe window in Selenium.",htmlElement.getMappingDetails().getOriginalFindLogic(),htmlElement.getMappingDetails().getFriendlyName()),e);
+            }
+        }
+        else
+        {
+            throw new RuntimeException(String.format("Element [%s] ([%s)] is [%s].  Must be an iframe!",htmlElement.getMappingDetails().getOriginalFindLogic(),htmlElement.getMappingDetails().getFriendlyName(),tag));
+        }
+    }
 
 
     public HTMLElement findElement(ObjectMapping objectMapping) { return findElement(null,objectMapping, false, false, getElementFindTimeout(), getPollInterval(), false);}
@@ -308,7 +316,7 @@ public class SeleniumDriver {
                 foundElements = webDriver.findElements(seleniumFindBy);
             }
             else {
-                foundElements=parentElement.getSeleniumnWebElement().findElements(seleniumFindBy);
+                foundElements=((WebElement)parentElement.getUnderlyingWebElement()).findElements(seleniumFindBy);
             }
         }
         catch (InvalidSelectorException e) {
@@ -372,6 +380,75 @@ public class SeleniumDriver {
             throw e;
         }
     }
+
+
+    //
+    // ELEMENT Based interaction
+    //
+
+    public boolean isDisplayed(Object webElement) {
+        if (webElement==null) throw new RuntimeException("Passed webElement null!");
+        Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "Get element displayed status using Selenium IWebElement.isDisplayed");
+        try {
+            return ((WebElement) webElement).isDisplayed();
+        }
+        catch (InvalidElementStateException e) {
+            //
+            // Usually thrown by Selenium when element stale
+            //
+            throw new ExceptionInvalidElementState("Unable to get element visibility.  See underlying cause.",e);
+        }
+    }
+    public boolean isEnabled(Object webElement) {
+        if (webElement==null) throw new RuntimeException("Passed webElement null!");
+        Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "Get element enabled status using Selenium IWebElement.isEnabled");
+        try {
+            return ((WebElement) webElement).isEnabled();
+        }
+        catch (InvalidElementStateException e) {
+            //
+            // Usually thrown by Selenium when element stale
+            //
+            throw new ExceptionInvalidElementState("Unable to get element enabled status.  See underlying cause.",e);
+        }
+    }
+
+    public void clear(Object webElement)
+    {
+        if (webElement==null) throw new RuntimeException("Passed webElement null!");
+        Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "Clearing element using Selenium IWebElement.Clear");
+        try {
+            ((WebElement) webElement).clear();
+        }
+        catch (InvalidElementStateException e) {
+            //
+            // Usually thrown by Selenium when element stale
+            //
+            throw new ExceptionInvalidElementState("Unable to clear element.  See underlying cause.",e);
+        }
+    }
+
+    public void setText(Object webElement, String text)
+    {
+        //
+        // This method will probably start to expand as different browsers/devices highlight different issues with entering text....
+        //
+        // A possible need is to wait until text can be entered:-
+        //IWebElement aa = ElementFindTimeout.Until((b) => { if (IsElementVisible(WebElement) && IsElementEnabled(WebElement)) return WebElement; else { Logger.WriteLn(this, "SetText", "Polling until Text can be entered"); return null; } });
+        if (webElement==null) throw new RuntimeException("Passed webElement null!");
+        text = (text==null)?"":text;
+        Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "Entering text using Selenium IWebElement SendKeys: [%s].", text);
+        try {
+            ((WebElement) webElement).sendKeys(text);
+        }
+        catch (InvalidElementStateException e) {
+            //
+            // Usually thrown by Selenium when element stale
+            //
+            throw new ExceptionInvalidElementState("Unable to set element text.  See underlying cause.",e);
+        }
+    }
+
 
 
     //////////// JAVASCRIPT EXECUTION

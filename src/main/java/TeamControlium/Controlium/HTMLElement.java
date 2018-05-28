@@ -2,7 +2,7 @@ package TeamControlium.Controlium;
 
 import TeamControlium.Utilities.Logger;
 import org.apache.commons.lang3.time.StopWatch;
-import org.openqa.selenium.WebElement;
+//import org.openqa.selenium.WebElement;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit;
 public class HTMLElement {
 
     private ObjectMapping _mappingDetails;
-    private WebElement _webElement;
+    private Object _webElement;
     private Object _parentElementOrDriver;
 
     private long elementDefaultChangeDeltaTimemS = 200; // Time to wait between samples when checking if an element is changing (IE. moving on screen)
@@ -37,22 +37,31 @@ public class HTMLElement {
     public HTMLElement() {
     }
 
-    public HTMLElement(Object parent, WebElement underlyingWebElement, ObjectMapping mapping) {
+    public HTMLElement(Object parent, Object underlyingWebElement, ObjectMapping mapping) {
         setParentOfThisElement(parent);
         setMappingDetails(mapping);
-        setSeleniumWebElement(underlyingWebElement);
-
+        setUnderlyingWebElement(underlyingWebElement);
     }
 
 
     // PROPERTIES
-    public WebElement getSeleniumnWebElement() {
+    public String getFriendlyName() {
+        ObjectMapping objectMapping = getMappingDetails();
+
+        if (objectMapping == null) {
+            return "No mapping details for element!";
+        } else {
+            return objectMapping.getFriendlyName();
+        }
+    }
+
+    public Object getUnderlyingWebElement() {
         return _webElement;
     }
 
-    public WebElement setSeleniumWebElement(WebElement webElement) {
+    public Object setUnderlyingWebElement(Object webElement) {
         _webElement = webElement;
-        _mappingDetails = new ObjectMapping(null, String.format("Wired directly to Selenium WebElement [%s]", webElement.toString()));
+        _mappingDetails = new ObjectMapping(null, String.format("Wired directly to underlying UI driver WebElement [%s]", webElement.getClass().getName()));
         return _webElement;
     } // Manually wiring to WebElement so we have no mapping details!
 
@@ -115,6 +124,29 @@ public class HTMLElement {
         return (_webElement != null);
     }
 
+    public boolean isVisible() {
+        return isVisible(false);
+    }
+
+    public boolean isVisible(boolean checkIfElementIsInViewport) {
+        throwIfUnbound(); // We need this to be bound to an element!
+        Logger.WriteLine(Logger.LogLevels.FrameworkInformation, "Verifying if element is visible");
+        boolean seleniumStatesElementDisplayed = getSeleniumDriver().isDisplayed(_webElement);
+
+        if (checkIfElementIsInViewport && seleniumStatesElementDisplayed) {
+            boolean elementWithinViewport = false;
+            String sResult = null;
+            try {
+                sResult = getSeleniumDriver().executeJavaScript(String.class, "var rect = arguments[0].getBoundingClientRect(); return ( rect.top >= 0 && rect.left >= 0 && rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) && rect.right <= (window.innerWidth || document.documentElement.clientWidth));", _webElement);
+                return (sResult.trim().toLowerCase() == "true");
+            } catch (Exception e) {
+                throw new RuntimeException(String.format("Exception executing Javascript to find status of element [%s]", getFriendlyName()));
+            }
+        } else {
+            return checkIfElementIsInViewport;
+        }
+    }
+
     public boolean isHeightStable(Duration deltaTime) {
         return !isAttributeChanging("offsetHeight", deltaTime);
     }
@@ -170,7 +202,15 @@ public class HTMLElement {
     }
 
     public boolean isElementEnabled() {
-        return HTMLElement.isElementEnabled(this);
+        boolean elementEnabled = false;
+        if (_webElement != null) {
+            elementEnabled = getSeleniumDriver().isEnabled(_webElement);
+            Logger.WriteLine(Logger.LogLevels.FrameworkInformation, String.format("Element [%s] enabled = [%s]", getFriendlyName(), (elementEnabled) ? "true" : "false"));
+            return elementEnabled;
+        } else {
+            Logger.WriteLine(Logger.LogLevels.FrameworkInformation, "Element enabled = [Web or element is NULL, returning false]");
+            return false;
+        }
     }
 
     public Size getSize() {
@@ -194,7 +234,6 @@ public class HTMLElement {
         Logger.WriteLine(Logger.LogLevels.TestDebug, "Element [%s], Height [%d], Width [%s]", getFriendlyName(), size.getHeight(), size.getWidth());
         return size;
     }
-
 
     private boolean isAttributeChanging(String attributeName, Duration timeDelta) {
         boolean isChanging;
@@ -221,7 +260,6 @@ public class HTMLElement {
             throw new RuntimeException(String.format("Exception monitoring element attribute. See log.", e));
         }
     }
-
 
     private boolean isAttributeChanging(String[] attributeNames, Duration timeDelta) {
         HashMap<String, String> attributeFirstStates = new HashMap<String, String>();
@@ -260,28 +298,6 @@ public class HTMLElement {
         return false;
     }
 
-    public boolean isVisible() {
-        return isVisible(false);
-    }
-
-    public boolean isVisible(boolean checkIfElementIsInViewport) {
-        throwIfUnbound(); // We need this to be bound to an element!
-        Logger.WriteLine(Logger.LogLevels.FrameworkInformation, "Verifying if element is visible");
-        boolean seleniumStatesElementDisplayed = _webElement.isDisplayed();
-
-        if (checkIfElementIsInViewport && seleniumStatesElementDisplayed) {
-            boolean elementWithinViewport = false;
-            String sResult = null;
-            try {
-                sResult = getSeleniumDriver().executeJavaScript(String.class, "var rect = arguments[0].getBoundingClientRect(); return ( rect.top >= 0 && rect.left >= 0 && rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) && rect.right <= (window.innerWidth || document.documentElement.clientWidth));", _webElement);
-                return (sResult.trim().toLowerCase() == "true");
-            } catch (Exception e) {
-                throw new RuntimeException(String.format("Exception executing Javascript to find status of element [%s]", getFriendlyName()));
-            }
-        } else {
-            return checkIfElementIsInViewport;
-        }
-    }
 
 
     // METHODS
@@ -344,10 +360,88 @@ public class HTMLElement {
         } catch (Exception ex) {
             throw new RuntimeException(String.format("Unable to bind element [%s] as child of [%s] (Find Logic [%s])", getMappingDetails().getFriendlyName(), (getParentOfThisElement().getClass() == SeleniumDriver.class) ? "Driver - IE. a Root element" : ((HTMLElement) getParentOfThisElement()).getMappingDetails().getFriendlyName(), getMappingDetails().getOriginalFindLogic()), ex);
         }
-        this.setSeleniumWebElement(foundElement.getSeleniumnWebElement());
+        this.setUnderlyingWebElement(foundElement.getUnderlyingWebElement());
         return this;
     }
 
+    public void setText(String text) {
+        setText(text,1,null);}
+    public void setText(String text,int maxTries) {
+        setText(text,maxTries,null);}
+    public void setText(String text,Duration retryInterval) {
+        setText(text,1,retryInterval);}
+    public void setText(String text,int maxTries,Duration retryInterval)
+    {
+        RuntimeException lastException=null;
+        throwIfUnbound();
+        if (maxTries<1) throw new RuntimeException(String.format("Maximum tries [%d].  Cannot be less than 1.",maxTries));
+        int tryIndex = 0;
+        Duration interval = (retryInterval==null) ? Duration.ofMillis(200) : retryInterval;
+        try
+        {
+            // Loop until maximum retry count
+            while (tryIndex++ <= maxTries)
+            {
+                try
+                {
+                    getSeleniumDriver().clear(this.getUnderlyingWebElement());
+                    enterText(text);
+                    if (tryIndex > 1) Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "{0} attempt attempt good.)", tryIndex);
+                    return;
+                }
+                catch (ExceptionInvalidElementState e)
+                {
+                    Thread.sleep(retryInterval.toMillis());
+                    lastException = e;
+                }
+            }
+            throw lastException;
+        }
+        catch (Exception e)
+        {
+            Logger.WriteLine(Logger.LogLevels.Error, "[%d] failed attempts to set [%s] to text [%s]: %s", tryIndex,this.getMappingDetails(),text,e.getMessage());
+            throw new RuntimeException(String.format("Attempt [%d] (Max retries reached)",tryIndex),e);
+        }
+    }
+
+
+    public void enterText(String text) {
+        enterText(text,1,null);}
+    public void enterText(String text,int maxTries) {
+        enterText(text,maxTries,null);}
+    public void enterText(String text,Duration retryInterval) {
+        enterText(text,1,retryInterval);}
+    public void enterText(String text,int maxTries,Duration retryInterval) {
+        RuntimeException lastException=null;
+        throwIfUnbound();
+        if (maxTries<1) throw new RuntimeException(String.format("Maximum tries [%d].  Cannot be less than 1.",maxTries));
+        int tryIndex = 0;
+        Duration interval = (retryInterval==null) ? Duration.ofMillis(200) : retryInterval;
+        try
+        {
+            // Loop until maximum retry count
+            while (tryIndex++ <= maxTries)
+            {
+                try
+                {
+                    getSeleniumDriver().setText(this.getUnderlyingWebElement(),(text==null)?"":text);
+                    if (tryIndex > 1) Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "{0} attempt attempt good.)", tryIndex);
+                    return;
+                }
+                catch (ExceptionInvalidElementState e)
+                {
+                    Thread.sleep(retryInterval.toMillis());
+                    lastException = e;
+                }
+            }
+            throw lastException;
+        }
+        catch (Exception e)
+        {
+            Logger.WriteLine(Logger.LogLevels.Error, "[%d] failed attempts to set [%s] to text [%s]: %s", tryIndex,this.getMappingDetails(),text,e.getMessage());
+            throw new RuntimeException(String.format("Attempt [%d] (Max retries reached)",tryIndex),e);
+        }
+    }
 
     // MAT CARRY ON HERE WITH 'SelectedItem' (Element.cs)
 
@@ -355,7 +449,6 @@ public class HTMLElement {
     private boolean waitForElementStable(StabilityType stabilityType) {
         return waitForElementStable(stabilityType, null);
     }
-
     private boolean waitForElementStable(StabilityType stabilityType, Duration timeout) {
         throwIfUnbound();
         boolean didStabilzeBeforeTimeout = false;
@@ -414,16 +507,6 @@ public class HTMLElement {
             throw new RuntimeException("Not bound to a Selenium Web Element");
     }
 
-    public String getFriendlyName() {
-        ObjectMapping objectMapping = getMappingDetails();
-
-        if (objectMapping == null) {
-            return "No mapping details for element!";
-        } else {
-            return objectMapping.getFriendlyName();
-        }
-    }
-
     //////////////////// STATICS
     /// <summary>Tests if element is currently visible to the user.</summary>
     /// <param name="Element">Element to test</param>
@@ -434,22 +517,21 @@ public class HTMLElement {
     public static boolean isVisible(HTMLElement element) {
         return isVisible(element, false);
     }
-
     public static boolean isVisible(HTMLElement element, boolean CheckIfElementIsInViewport) {
         return element.isVisible(CheckIfElementIsInViewport);
     }
 
-    public static boolean isElementEnabled(HTMLElement element) {
-        boolean elementEnabled = false;
-        if ((element != null) && element.getSeleniumnWebElement() != null) {
-            elementEnabled = element.getSeleniumnWebElement().isEnabled();
-            Logger.WriteLine(Logger.LogLevels.FrameworkInformation, String.format("Element [%s] enabled = [%s]", element.getFriendlyName(), (elementEnabled) ? "true" : "false"));
-            return elementEnabled;
-        } else {
-            Logger.WriteLine(Logger.LogLevels.FrameworkInformation, "Element enabled = [Web or element is NULL, returning false]");
-            return false;
-        }
-    }
+ //   public static boolean isElementEnabled(HTMLElement element) {
+ //       boolean elementEnabled = false;
+ //       if ((element != null) && element.getUnderlyingWebElement() != null) {
+ //           elementEnabled =  element.getUnderlyingWebElement().isEnabled();
+ //           Logger.WriteLine(Logger.LogLevels.FrameworkInformation, String.format("Element [%s] enabled = [%s]", element.getFriendlyName(), (elementEnabled) ? "true" : "false"));
+ //           return elementEnabled;
+ //       } else {
+ //           Logger.WriteLine(Logger.LogLevels.FrameworkInformation, "Element enabled = [Web or element is NULL, returning false]");
+ //           return false;
+ //       }
+ //   }
 
 
 }
