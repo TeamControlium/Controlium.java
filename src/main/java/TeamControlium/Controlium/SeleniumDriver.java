@@ -7,9 +7,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.time.StopWatch;
 import org.junit.jupiter.api.Assertions;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.ConnectException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -29,6 +27,15 @@ import org.openqa.selenium.edge.EdgeOptions;
 import org.openqa.selenium.ie.InternetExplorerDriver;
 import org.openqa.selenium.ie.InternetExplorerDriverService;
 import org.openqa.selenium.ie.InternetExplorerOptions;
+import org.w3c.dom.NodeList;
+
+import javax.swing.text.html.HTMLDocument;
+import javax.swing.text.html.HTMLEditorKit;
+import javax.swing.text.html.parser.ParserDelegator;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpression;
+import javax.xml.xpath.XPathFactory;
 
 public class SeleniumDriver {
     // CONSTANT FIELDS
@@ -387,7 +394,7 @@ public class SeleniumDriver {
     //
 
     public boolean isDisplayed(Object webElement) {
-        if (webElement==null) throw new RuntimeException("Passed webElement null!");
+        if (webElement==null) throw new RuntimeException("webElement null!");
         Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "Get element displayed status using Selenium IWebElement.isDisplayed");
         try {
             return ((WebElement) webElement).isDisplayed();
@@ -400,7 +407,7 @@ public class SeleniumDriver {
         }
     }
     public boolean isEnabled(Object webElement) {
-        if (webElement==null) throw new RuntimeException("Passed webElement null!");
+        if (webElement==null) throw new RuntimeException("webElement null!");
         Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "Get element enabled status using Selenium IWebElement.isEnabled");
         try {
             return ((WebElement) webElement).isEnabled();
@@ -415,7 +422,7 @@ public class SeleniumDriver {
 
     public void clear(Object webElement)
     {
-        if (webElement==null) throw new RuntimeException("Passed webElement null!");
+        if (webElement==null) throw new RuntimeException("webElement null!");
         Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "Clearing element using Selenium IWebElement.Clear");
         try {
             ((WebElement) webElement).clear();
@@ -435,7 +442,7 @@ public class SeleniumDriver {
         //
         // A possible need is to wait until text can be entered:-
         //IWebElement aa = ElementFindTimeout.Until((b) => { if (IsElementVisible(WebElement) && IsElementEnabled(WebElement)) return WebElement; else { Logger.WriteLn(this, "SetText", "Polling until Text can be entered"); return null; } });
-        if (webElement==null) throw new RuntimeException("Passed webElement null!");
+        if (webElement==null) throw new RuntimeException("webElement null!");
         text = (text==null)?"":text;
         Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "Entering text using Selenium IWebElement SendKeys: [%s].", text);
         try {
@@ -450,6 +457,78 @@ public class SeleniumDriver {
     }
 
 
+    public String getText(Object webElement,boolean includeDescendantsText, boolean scrollIntoViewFirst, boolean useInnerTextAttribute) {
+        if (webElement==null) throw new RuntimeException("webElement null!");
+        //
+        // This is a bit odd and there are two issues involved but which boil down to a single one.  GetText MUST only return text the user can see (or what
+        // is the point of what we are trying to achive...).  So we must ensure we can see the text we are returning.  Note that there is one point being
+        // deliberatly ignored; foreground/background text colour.  In an ideal world we should only return text where the colours are sufficiently different
+        // for a human to read.  But, what is sufficient?  Should we take into account common colour-blindness issues etc etc etc....  So, just stay simple for
+        // now and ignore text colours etc....
+        //
+        ///////
+        //
+        // We may want to scroll into view first; Because
+        //          (a) A user would not be able to get/read the text if hidden so if they cannot see it then it would be a bad test that returned hidden text.
+        //          (b) If the element is outside the viewport getText will return an empty string.
+        // 
+        if (scrollIntoViewFirst) ScrollIntoView(webElement);
+        ///////
+        //
+        // We may use innerText rather than TextContent (as the Text() property does).  InnerText returns the text being presented to the user
+        // whereas TextContent returns the raw text in all nodes within the element - irrelevant of whether hidden or not.
+        //
+        StringBuilder text = new StringBuilder();
+        if (includeDescendantsText)
+        {
+            if (useInnerTextAttribute)
+            {
+                text.append(((WebElement)webElement).getAttribute("innerText"));
+                Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "Get element text using element innerText attribute: [{0}]", text);
+            }
+            else
+            {
+                text.append(((WebElement)webElement).getText());
+                Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "Get element text using Selenium Text property: [{0}]", text);
+            }
+        }
+        else
+        {
+            Reader stringReader = new StringReader(((WebElement)webElement).getAttribute("outerHTML"));
+            HTMLEditorKit htmlKit = new HTMLEditorKit();
+            HTMLDocument htmlDoc = (HTMLDocument) htmlKit.createDefaultDocument();
+            HTMLEditorKit.Parser parser = new ParserDelegator();
+            try {
+                parser.parse(stringReader, htmlDoc.getReader(0), true);
+            }
+            catch (Exception e) {
+                throw new RuntimeException(String.format("Error parsing HTML from element outerHTML!"),e);
+            }
+
+            XPath xPath = XPathFactory.newInstance().newXPath();
+            NodeList nl=null;
+            try {
+                XPathExpression exp = xPath.compile("/*/text()");
+                nl = (NodeList)exp.evaluate(htmlDoc,XPathConstants.NODESET);
+            } catch (Exception e)
+            {
+                throw new RuntimeException(String.format("Error with XPath!"),e);
+            }
+
+            for(int index=0;index<nl.getLength();index++) {
+                text.append(nl.item(index).getTextContent());
+            }
+        }
+        return text.toString();
+    }
+
+
+
+    public void ScrollIntoView(Object webElement)
+    {
+        Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "Scrolling element in to view using JavaScript injection - [Element].scrollIntoView()");
+        executeJavaScriptNoReturnData("arguments[0].scrollIntoView();", webElement);
+    }
 
     //////////// JAVASCRIPT EXECUTION
 
@@ -492,7 +571,7 @@ public class SeleniumDriver {
     /// <summary>Injects and executes Javascript in the currently active Selenium browser. If Selenium throws an error, test is aborted.</summary>
     /// <param name="script">Javascript that will be injected into the DOM and executed.</param>
     /// <param name="args">Any arguments passed in to the Javascript</param>
-    public void executeJavaScriptNoReturnData(String script, Object[] args)
+    public void executeJavaScriptNoReturnData(String script, Object... args)
     {
        Object dummy = executeJavaScript(Object.class,script,args);
     }

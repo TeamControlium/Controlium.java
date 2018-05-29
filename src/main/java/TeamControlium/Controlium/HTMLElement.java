@@ -443,6 +443,19 @@ public class HTMLElement {
         }
     }
 
+
+    public String getText() {
+        throwIfUnbound();
+        return getText(true);
+    }
+    public String getText(boolean includeDesendants) {
+        throwIfUnbound();
+        return getSeleniumDriver().getText(getUnderlyingWebElement(),includeDesendants,false,false);
+    }
+
+
+
+
     // MAT CARRY ON HERE WITH 'SelectedItem' (Element.cs)
 
 
