@@ -1,5 +1,6 @@
 package TeamControlium.Controlium;
 
+import TeamControlium.Controlium.Exception.InvalidElementState;
 import TeamControlium.Utilities.*;
 
 import org.apache.commons.io.FileUtils;
@@ -403,7 +404,7 @@ public class SeleniumDriver {
             //
             // Usually thrown by Selenium when element stale
             //
-            throw new ExceptionInvalidElementState("Unable to get element visibility.  See underlying cause.",e);
+            throw new InvalidElementState("Unable to get element visibility.  See underlying cause.",e);
         }
     }
     public boolean isEnabled(Object webElement) {
@@ -416,12 +417,11 @@ public class SeleniumDriver {
             //
             // Usually thrown by Selenium when element stale
             //
-            throw new ExceptionInvalidElementState("Unable to get element enabled status.  See underlying cause.",e);
+            throw new InvalidElementState("Unable to get element enabled status.  See underlying cause.",e);
         }
     }
 
-    public void clear(Object webElement)
-    {
+    public void clear(Object webElement) {
         if (webElement==null) throw new RuntimeException("webElement null!");
         Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "Clearing element using Selenium IWebElement.Clear");
         try {
@@ -431,12 +431,11 @@ public class SeleniumDriver {
             //
             // Usually thrown by Selenium when element stale
             //
-            throw new ExceptionInvalidElementState("Unable to clear element.  See underlying cause.",e);
+            throw new InvalidElementState("Unable to clear element.  See underlying cause.",e);
         }
     }
 
-    public void setText(Object webElement, String text)
-    {
+    public void setText(Object webElement, String text) {
         //
         // This method will probably start to expand as different browsers/devices highlight different issues with entering text....
         //
@@ -452,10 +451,9 @@ public class SeleniumDriver {
             //
             // Usually thrown by Selenium when element stale
             //
-            throw new ExceptionInvalidElementState("Unable to set element text.  See underlying cause.",e);
+            throw new InvalidElementState("Unable to set element text.  See underlying cause.",e);
         }
     }
-
 
     public String getText(Object webElement,boolean includeDescendantsText, boolean scrollIntoViewFirst, boolean useInnerTextAttribute) {
         if (webElement==null) throw new RuntimeException("webElement null!");
@@ -472,7 +470,7 @@ public class SeleniumDriver {
         //          (a) A user would not be able to get/read the text if hidden so if they cannot see it then it would be a bad test that returned hidden text.
         //          (b) If the element is outside the viewport getText will return an empty string.
         // 
-        if (scrollIntoViewFirst) ScrollIntoView(webElement);
+        if (scrollIntoViewFirst) scrollIntoView(webElement);
         ///////
         //
         // We may use innerText rather than TextContent (as the Text() property does).  InnerText returns the text being presented to the user
@@ -522,10 +520,64 @@ public class SeleniumDriver {
         return text.toString();
     }
 
+    public void click(Object webElement) {
+        if (webElement == null) throw new RuntimeException("webElement null!");
 
+        try {
+            ((WebElement) webElement).click();
+        } catch (WebDriverException wde) {
+            String errorMessage = wde.getMessage();
+            if (errorMessage.toLowerCase().contains("other element would receive the click")) {
+                WebElement offendingElement;
+                try {
+                    //
+                    // This is an old chestnut... Have had many an argument with the Selenium team about the 'isClickable'
+                    // property.  It simply doesnt work and they wont change it 'for historical reasons' Eeeesh (See
+                    // https://code.google.com/p/selenium/issues/detail?id=6804).
+                    // So, we need to throw a slightly more intelligent exception here so that the tester, or underlying
+                    // tool can fathom out what is going on...
+                    //
+                    // We'll use Javascript to find out what the topmost element is at the location the click is firing at.  At least we
+                    // will then know what element is getting that there click...
+                    //
+                    // Get the xy coordinates from string "Other element would receive the click at point (123,456)"
+                    String[] xy = errorMessage.split("point [(]", 2)[1].split("[)]", 2)[0].replaceAll("\\s+", "").split("[,]", 2);
 
-    public void ScrollIntoView(Object webElement)
-    {
+                    offendingElement = executeJavaScript(WebElement.class, "return document.elementFromPoint(arguments[0],arguments[1]);", xy[0], xy[1]);
+                    if (offendingElement == null) throw new RuntimeException("No element returned from javascript!");
+                } catch (Exception e) {
+                    //
+                    // We have an error!  We need to tell the caller what the problem was BUT then leave the underylying Click error trace......
+                    //
+                    throw new RuntimeException(String.format("Error determining click coordinates for click from WebDriverException message: %s", e.getMessage()), wde);
+                }
+                // Finally throw the exception correctly identifying the element that is covering our click attempt
+                throw new InvalidElementState(String.format("Element could not be clicked as another element would get the click.  Offending element (Element and all descendants shown):\r\n%s", offendingElement.getAttribute("outerHTML")), wde);
+            }
+
+            // No idea what it is - so whatever, rethrow...
+            throw wde;
+        }
+    }
+
+    public String getAttribute(Object webElement,String attribute) {
+        if (webElement==null) throw new RuntimeException("webElement null!");
+
+        try {
+            String attrib = ((WebElement)webElement).getAttribute(attribute);
+            Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "Got attribute [%s]: [%s]", attribute,(attrib==null)?"Null":attrib);
+            return (attrib==null)?"":attrib;
+
+        }
+        catch (InvalidElementStateException e) {
+            //
+            // Usually thrown by Selenium when element stale
+            //
+            throw new InvalidElementState(String.format("Unable to get element attribute [%s].  See underlying cause.",(attribute==null)?"Null!!":attribute),e);
+        }
+    }
+
+    public void scrollIntoView(Object webElement) {
         Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "Scrolling element in to view using JavaScript injection - [Element].scrollIntoView()");
         executeJavaScriptNoReturnData("arguments[0].scrollIntoView();", webElement);
     }

@@ -1,5 +1,6 @@
 package TeamControlium.Controlium;
 
+import TeamControlium.Controlium.Exception.InvalidElementState;
 import TeamControlium.Utilities.Logger;
 import org.apache.commons.lang3.time.StopWatch;
 //import org.openqa.selenium.WebElement;
@@ -389,7 +390,7 @@ public class HTMLElement {
                     if (tryIndex > 1) Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "{0} attempt attempt good.)", tryIndex);
                     return;
                 }
-                catch (ExceptionInvalidElementState e)
+                catch (InvalidElementState e)
                 {
                     Thread.sleep(retryInterval.toMillis());
                     lastException = e;
@@ -397,10 +398,15 @@ public class HTMLElement {
             }
             throw lastException;
         }
+        catch (InvalidElementState ex) {
+            Logger.WriteLine(Logger.LogLevels.Error,"Error thrown setting text (clear then enter) in [%s] (Tried %d times): %s",getFriendlyName(),tryIndex,ex.getMessage());
+            throw new InvalidElementState(String.format("Error thrown setting text (clear then enter) in [%s] ([%s]).  Tried %d times).",getFriendlyName(),getMappingDetails().getActualFindLogic(),tryIndex),ex);
+
+        }
         catch (Exception e)
         {
-            Logger.WriteLine(Logger.LogLevels.Error, "[%d] failed attempts to set [%s] to text [%s]: %s", tryIndex,this.getMappingDetails(),text,e.getMessage());
-            throw new RuntimeException(String.format("Attempt [%d] (Max retries reached)",tryIndex),e);
+            Logger.WriteLine(Logger.LogLevels.Error,"Error thrown setting text (clear then enter) in [%s] (Tried %d times): %s",getFriendlyName(),tryIndex,e.getMessage());
+            throw new RuntimeException(String.format("Error thrown setting text (clear then enter) in [%s] ([%s]).  Tried %d times).",getFriendlyName(),getMappingDetails().getActualFindLogic(),tryIndex),e);
         }
     }
 
@@ -428,7 +434,7 @@ public class HTMLElement {
                     if (tryIndex > 1) Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "{0} attempt attempt good.)", tryIndex);
                     return;
                 }
-                catch (ExceptionInvalidElementState e)
+                catch (InvalidElementState e)
                 {
                     Thread.sleep(retryInterval.toMillis());
                     lastException = e;
@@ -436,13 +442,17 @@ public class HTMLElement {
             }
             throw lastException;
         }
+        catch (InvalidElementState ex) {
+            Logger.WriteLine(Logger.LogLevels.Error,"Error thrown entering text in [%s] (Tried %d times): %s",getFriendlyName(),tryIndex,ex.getMessage());
+            throw new InvalidElementState(String.format("Error thrown entering text in [%s] ([%s]).  Tried %d times).",getFriendlyName(),getMappingDetails().getActualFindLogic(),tryIndex),ex);
+
+        }
         catch (Exception e)
         {
-            Logger.WriteLine(Logger.LogLevels.Error, "[%d] failed attempts to set [%s] to text [%s]: %s", tryIndex,this.getMappingDetails(),text,e.getMessage());
-            throw new RuntimeException(String.format("Attempt [%d] (Max retries reached)",tryIndex),e);
+            Logger.WriteLine(Logger.LogLevels.Error,"Error thrown entering text in [%s] (Tried %d times): %s",getFriendlyName(),tryIndex,e.getMessage());
+            throw new RuntimeException(String.format("Error thrown entering text in [%s] ([%s]).  Tried %d times).",getFriendlyName(),getMappingDetails().getActualFindLogic(),tryIndex),e);
         }
     }
-
 
     public String getText() {
         throwIfUnbound();
@@ -450,11 +460,63 @@ public class HTMLElement {
     }
     public String getText(boolean includeDesendants) {
         throwIfUnbound();
-        return getSeleniumDriver().getText(getUnderlyingWebElement(),includeDesendants,false,false);
+        try {
+            return getSeleniumDriver().getText(getUnderlyingWebElement(),includeDesendants,false,false);
+        }
+        catch (InvalidElementState ex) {
+            throw ex;
+        }
+        catch (Exception e) {
+            Logger.WriteLine(Logger.LogLevels.TestInformation,"Error thrown getting text from [%s]: %s",getFriendlyName(),e.getMessage());
+            throw new RuntimeException(String.format("Error thrown getting text from [%s] ([%s])",getFriendlyName(),getMappingDetails().getActualFindLogic()),e);
+        }
     }
 
+    public String scrollIntoViewAndGetText() {
+        throwIfUnbound();
+        return scrollIntoViewAndGetText(true);
+    }
+    public String scrollIntoViewAndGetText(boolean includeDesendants) {
+        throwIfUnbound();
+        try {
+            return getSeleniumDriver().getText(getUnderlyingWebElement(),includeDesendants,true,false);
+        }
+        catch (InvalidElementState ex) {
+            throw ex;
+        }
+        catch (Exception e) {
+            Logger.WriteLine(Logger.LogLevels.TestInformation,"Error thrown scrolling into view and getting text from [%s]: %s",getFriendlyName(),e.getMessage());
+            throw new RuntimeException(String.format("Error thrown scrolling into view and getting text from [%s] ([%s])",getFriendlyName(),getMappingDetails().getActualFindLogic()),e);
+        }
+    }
 
+    public String getAttribute(String attribute) {
+        throwIfUnbound();
+        try {
+            return getSeleniumDriver().getAttribute(getUnderlyingWebElement(),attribute);
+        }
+        catch (InvalidElementState ex) {
+            throw ex;
+        }
+        catch (Exception e) {
+            Logger.WriteLine(Logger.LogLevels.TestInformation,"Error thrown getting attribute [%s] from [%s]: %s",getFriendlyName(),e.getMessage());
+            throw new RuntimeException(String.format("Error thrown getting attribute [%s] from [%s] ([%s])",attribute==null?"Null":attribute,getFriendlyName(),getMappingDetails().getActualFindLogic()),e);
+        }
+    }
 
+    public void click() {
+        throwIfUnbound();
+        try {
+            getSeleniumDriver().click(getUnderlyingWebElement());
+        }
+        catch (InvalidElementState ex) {
+            throw ex;
+        }
+        catch (Exception e) {
+            Logger.WriteLine(Logger.LogLevels.TestInformation,"Error thrown clicking [%s]: %s",getFriendlyName(),e.getMessage());
+            throw new RuntimeException(String.format("Error thrown clicking [%s] ([%s])",getFriendlyName(),getMappingDetails().getActualFindLogic()),e);
+        }
+    }
 
     // MAT CARRY ON HERE WITH 'SelectedItem' (Element.cs)
 
