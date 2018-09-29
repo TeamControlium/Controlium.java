@@ -340,6 +340,26 @@ public class HTMLElement {
         return getSeleniumDriver().findElement(this,mapping,waitUntilSingle,waitUntilStable);
     }
 
+    public HTMLElement findElementOrNull(ObjectMapping mapping) {
+        // We can only do this if we have an instance of SeleniumDriver
+        throwIfUnbound();
+        return getSeleniumDriver().findElementOrNull(this,mapping);
+    }
+    public HTMLElement findElementOrNull(ObjectMapping mapping,boolean allowMultipleMatches) {
+        // We can only do this if we have an instance of SeleniumDriver
+        throwIfUnbound();
+        return getSeleniumDriver().findElementOrNull(this,mapping,allowMultipleMatches);
+    }
+    public HTMLElement findElementOrNull(ObjectMapping mapping,boolean waitUntilSingle,boolean waitUntilStable) {
+        // We can only do this if we have an instance of SeleniumDriver
+        throwIfUnbound();
+        return getSeleniumDriver().findElementOrNull(this,mapping,waitUntilSingle,waitUntilStable);
+    }
+    public Exception getLastFindException() {
+        return getSeleniumDriver().getLastException();
+    }
+
+
     public boolean waitForHeightStable(Duration timeout) {
         return waitForElementStable(StabilityType.HEIGHT, timeout);
     }
@@ -516,6 +536,20 @@ public class HTMLElement {
         catch (Exception e) {
             Logger.WriteLine(Logger.LogLevels.TestInformation,"Error thrown getting attribute [%s] from [%s]: %s",getFriendlyName(),e.getMessage());
             throw new RuntimeException(String.format("Error thrown getting attribute [%s] from [%s] ([%s])",attribute==null?"Null":attribute,getFriendlyName(),getMappingDetails().getActualFindLogic()),e);
+        }
+    }
+
+    public boolean hasAttribute(String attribute) {
+        throwIfUnbound();
+        try {
+            return getSeleniumDriver().hasAttribute(getUnderlyingWebElement(),attribute);
+        }
+        catch (InvalidElementState ex) {
+            throw ex;
+        }
+        catch (Exception e) {
+            Logger.WriteLine(Logger.LogLevels.TestDebug,"Error thrown getting attribute [%s] from [%s]. Assume does not have attribute: %s",getFriendlyName(),e.getMessage());
+            return false;
         }
     }
 

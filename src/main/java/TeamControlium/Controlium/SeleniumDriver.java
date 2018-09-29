@@ -54,6 +54,7 @@ public class SeleniumDriver {
 
     private WebDriver webDriver;
 
+    private Exception _lastException=null;
     private Duration _findTimeout = null;
     private Duration _pollInterval = null;
     private Duration _pageLoadTimeout = null;
@@ -136,6 +137,7 @@ public class SeleniumDriver {
 
 
     // PROPERTIES
+    public Exception getLastException() { return _lastException; }
     public Duration setFindTimeout(Duration findTimeout) { _findTimeout = findTimeout; return getElementFindTimeout();}
     public Duration getElementFindTimeout() { return _findTimeout;}
     public Duration setPollInterval(Duration pollInterval) { _pollInterval = pollInterval; return getPollInterval();}
@@ -198,7 +200,41 @@ public class SeleniumDriver {
     public HTMLElement findElement(HTMLElement parentElement,ObjectMapping objectMapping,boolean allowMultipleMatches,boolean waitUntilSingle,Duration timeout,boolean waitUntilStable) { return findElement(parentElement,objectMapping, allowMultipleMatches, waitUntilSingle, timeout, getPollInterval(), waitUntilStable);}
     public HTMLElement findElement(HTMLElement parentElement,ObjectMapping objectMapping,boolean allowMultipleMatches,boolean waitUntilSingle,Duration timeout,Duration pollInterval) { return findElement(parentElement,objectMapping, allowMultipleMatches, waitUntilSingle, timeout, pollInterval, false);}
 
+    public HTMLElement findElementOrNull(ObjectMapping objectMapping) { return findElementOrNull(null,objectMapping, false, false, getElementFindTimeout(), getPollInterval(), false);}
+    public HTMLElement findElementOrNull(ObjectMapping objectMapping,boolean waitUntilStable) { return findElementOrNull(null,objectMapping, false, false, getElementFindTimeout(), getPollInterval(), waitUntilStable);}
+    public HTMLElement findElementOrNull(ObjectMapping objectMapping,Duration timeout) { return findElementOrNull(null,objectMapping, false, false, timeout, getPollInterval(), false);}
+    public HTMLElement findElementOrNull(ObjectMapping objectMapping,Duration timeout,boolean waitUntilStable) { return findElementOrNull(null,objectMapping, false, false, timeout, getPollInterval(), waitUntilStable);}
+    public HTMLElement findElementOrNull(ObjectMapping objectMapping,Duration timeout,Duration pollInterval) { return findElementOrNull(null,objectMapping, false, false, timeout, pollInterval, false);}
+    public HTMLElement findElementOrNull(ObjectMapping objectMapping,Duration timeout,Duration pollInterval,boolean waitUntilStable) { return findElementOrNull(null,objectMapping, false, false, timeout, pollInterval, waitUntilStable);}
+    public HTMLElement findElementOrNull(ObjectMapping objectMapping,boolean waitUntilSingle, boolean waitUntilStable) { return findElementOrNull(null,objectMapping, false, waitUntilSingle, getElementFindTimeout(), getPollInterval(), waitUntilStable);}
+    public HTMLElement findElementOrNull(ObjectMapping objectMapping,boolean allowMultipleMatches,boolean waitUntilSingle,boolean waitUntilStable) { return findElementOrNull(null,objectMapping, allowMultipleMatches, waitUntilSingle, getElementFindTimeout(), getPollInterval(), waitUntilStable);}
+    public HTMLElement findElementOrNull(ObjectMapping objectMapping,boolean allowMultipleMatches,boolean waitUntilSingle,Duration timeout) { return findElementOrNull(null,objectMapping, allowMultipleMatches, waitUntilSingle, timeout, getPollInterval(), false);}
+    public HTMLElement findElementOrNull(ObjectMapping objectMapping,boolean allowMultipleMatches,boolean waitUntilSingle,Duration timeout,boolean waitUntilStable) { return findElementOrNull(null,objectMapping, allowMultipleMatches, waitUntilSingle, timeout, getPollInterval(), waitUntilStable);}
+    public HTMLElement findElementOrNull(ObjectMapping objectMapping,boolean allowMultipleMatches,boolean waitUntilSingle,Duration timeout,Duration pollInterval) { return findElementOrNull(null,objectMapping, allowMultipleMatches, waitUntilSingle, timeout, pollInterval, false);}
+    public HTMLElement findElementOrNull(ObjectMapping objectMapping, boolean allowMultipleMatches,boolean waitUntilSingle, Duration timeout, Duration pollInterval, boolean waitUntilStable) { return findElementOrNull(null,objectMapping, allowMultipleMatches, waitUntilSingle, timeout, pollInterval, waitUntilStable);}
+    public HTMLElement findElementOrNull(HTMLElement parentElement,ObjectMapping objectMapping) { return findElementOrNull(parentElement,objectMapping, false, false, getElementFindTimeout(), getPollInterval(), false);}
+    public HTMLElement findElementOrNull(HTMLElement parentElement,ObjectMapping objectMapping,boolean waitUntilStable) { return findElementOrNull(parentElement,objectMapping, false, false, getElementFindTimeout(), getPollInterval(), waitUntilStable);}
+    public HTMLElement findElementOrNull(HTMLElement parentElement,ObjectMapping objectMapping,boolean waitUntilSingle, boolean waitUntilStable) { return findElementOrNull(parentElement,objectMapping, false, waitUntilSingle, getElementFindTimeout(), getPollInterval(), waitUntilStable);}
+    public HTMLElement findElementOrNull(HTMLElement parentElement,ObjectMapping objectMapping,Duration timeout) { return findElementOrNull(parentElement,objectMapping, false, false, timeout, getPollInterval(), false);}
+    public HTMLElement findElementOrNull(HTMLElement parentElement,ObjectMapping objectMapping,Duration timeout,boolean waitUntilStable) { return findElementOrNull(parentElement,objectMapping, false, false, timeout, getPollInterval(), waitUntilStable);}
+    public HTMLElement findElementOrNull(HTMLElement parentElement,ObjectMapping objectMapping,Duration timeout,Duration pollInterval) { return findElementOrNull(parentElement,objectMapping, false, false, timeout, pollInterval, false);}
+    public HTMLElement findElementOrNull(HTMLElement parentElement,ObjectMapping objectMapping,Duration timeout,Duration pollInterval,boolean waitUntilStable) { return findElementOrNull(parentElement,objectMapping, false, false, timeout, pollInterval, waitUntilStable);}
+    public HTMLElement findElementOrNull(HTMLElement parentElement,ObjectMapping objectMapping,boolean allowMultipleMatches,boolean waitUntilSingle,boolean waitUntilStable) { return findElementOrNull(parentElement,objectMapping, allowMultipleMatches, waitUntilSingle, getElementFindTimeout(), getPollInterval(), waitUntilStable);}
+    public HTMLElement findElementOrNull(HTMLElement parentElement,ObjectMapping objectMapping,boolean allowMultipleMatches,boolean waitUntilSingle,Duration timeout) { return findElementOrNull(parentElement,objectMapping, allowMultipleMatches, waitUntilSingle, timeout, getPollInterval(), false);}
+    public HTMLElement findElementOrNull(HTMLElement parentElement,ObjectMapping objectMapping,boolean allowMultipleMatches,boolean waitUntilSingle,Duration timeout,boolean waitUntilStable) { return findElementOrNull(parentElement,objectMapping, allowMultipleMatches, waitUntilSingle, timeout, getPollInterval(), waitUntilStable);}
+    public HTMLElement findElementOrNull(HTMLElement parentElement,ObjectMapping objectMapping,boolean allowMultipleMatches,boolean waitUntilSingle,Duration timeout,Duration pollInterval) { return findElementOrNull(parentElement,objectMapping, allowMultipleMatches, waitUntilSingle, timeout, pollInterval, false);}
 
+
+
+    public HTMLElement findElementOrNull(HTMLElement parentElement,ObjectMapping objectMapping, boolean allowMultipleMatches,boolean waitUntilSingle, Duration timeout, Duration pollInterval, boolean waitUntilStable) {
+        try {
+            return findElement(parentElement,objectMapping,allowMultipleMatches,waitUntilSingle,timeout,pollInterval,waitUntilStable);
+        }
+        catch (Exception e) {
+            _lastException = e;
+            return null;
+        }
+    }
     public HTMLElement findElement(HTMLElement parentElement,ObjectMapping objectMapping, boolean allowMultipleMatches,boolean waitUntilSingle, Duration timeout, Duration pollInterval, boolean waitUntilStable) {
         List<HTMLElement> clauseResults = null;
         boolean multiLogShown=false;
@@ -567,6 +603,22 @@ public class SeleniumDriver {
             String attrib = ((WebElement)webElement).getAttribute(attribute);
             Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "Got attribute [%s]: [%s]", attribute,(attrib==null)?"Null":attrib);
             return (attrib==null)?"":attrib;
+
+        }
+        catch (InvalidElementStateException e) {
+            //
+            // Usually thrown by Selenium when element stale
+            //
+            throw new InvalidElementState(String.format("Unable to get element attribute [%s].  See underlying cause.",(attribute==null)?"Null!!":attribute),e);
+        }
+    }
+    public boolean hasAttribute(Object webElement,String attribute) {
+        if (webElement==null) throw new RuntimeException("webElement null!");
+
+        try {
+            WebElement element = ((WebElement)webElement).findElement(By.xpath(String.format(".[@%s]",attribute)));
+            Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "Element [%s] have attribute: [%s]", element==null?"does not":"does",attribute);
+            return (element!=null);
 
         }
         catch (InvalidElementStateException e) {

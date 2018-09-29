@@ -1,6 +1,8 @@
 package TeamControlium.Controlium;
 
 
+import TeamControlium.Utilities.Logger;
+import org.apache.commons.lang3.time.StopWatch;
 import org.apache.http.MethodNotSupportedException;
 
 import java.util.Objects;
@@ -13,41 +15,59 @@ public abstract class ControlBase {
 
 
     private ObjectMapping _Mapping;
+
     public ObjectMapping getMapping() {
         return _Mapping;
     }
+
     protected ObjectMapping setMapping(ObjectMapping mapping) {
-        _Mapping=mapping;
+        _Mapping = mapping;
         return _Mapping;
     }
 
     private HTMLElement _RootElement;
+
     public HTMLElement getRootElement() {
         if (_RootElement == null) {
-            throw new RuntimeException(String.format("Control [%s] root element NULL.  Has control been located on the page (IE. SetControl(...)?",getMapping().getFriendlyName()));
-        }
-        else {
+            throw new RuntimeException(String.format("Control [%s] root element NULL.  Has control been located on the page (IE. SetControl(...)?", getMapping().getFriendlyName()));
+        } else {
             return _RootElement;
         }
     }
+
     protected HTMLElement setRootElement(HTMLElement element) {
         _RootElement = element;
         setMapping(element.getMappingDetails());
         return _RootElement;
     }
+
     protected HTMLElement setRootElement(ObjectMapping mapping) {
         setRootElement(new HTMLElement(mapping));
         return _RootElement;
     }
 
     private SeleniumDriver _SeleniumDriver;
+
     public SeleniumDriver getSeleniumDriver() {
         return _SeleniumDriver;
     }
-    private SeleniumDriver setSeleniumDriver(SeleniumDriver seleniumDriver) {
+
+    public SeleniumDriver setSeleniumDriver(SeleniumDriver seleniumDriver) {
         _SeleniumDriver = seleniumDriver;
         return _SeleniumDriver;
     }
+
+    private ControlBase _parentControl;
+
+    public ControlBase getParentControl() {
+        return _parentControl;
+    }
+
+    public ControlBase setParentControl(ControlBase parentControl) {
+        _parentControl = parentControl;
+        return _parentControl;
+    }
+
 
     public static void clearCache() {
         throw new RuntimeException("No caching implemented yet!");
@@ -55,9 +75,170 @@ public abstract class ControlBase {
 
 
     //
-    // Sets on a child control with the childs find logic being applied this controls root element.
+    // Sets on a child control with the child's find logic being applied to this controls root element.
     // Method can be overridden by control implementations.
     //
+    public <T extends ControlBase> T setControl(T newControl) {
+        return setControl(this, newControl);
+    }
 
+    public static <T extends ControlBase> T setControl(ControlBase parentControl, T newControl) {
+        return setControl(parentControl.getSeleniumDriver(), parentControl, newControl);
+    }
+    public static <T extends ControlBase> T setControl(SeleniumDriver seleniumDriver, T newControl) {
+        return setControl(seleniumDriver, null, newControl);
+    }
+    public static <T extends ControlBase> T setControl(SeleniumDriver seleniumDriver, ControlBase parentControl, T newControl) {
+        if (newControl == null) throw new RuntimeException("newControl Null!");
+
+        StopWatch timeWaited = StopWatch.createStarted();
+
+        try {
+            Logger.WriteLine(Logger.LogLevels.TestInformation, "Setting on Control [%s] from Parent [%s]",
+                    newControl.getMapping() == null ? "No mapping logic!" : newControl.getMapping().getFriendlyName(),
+                    parentControl == null ? "No parent Control - So Top Level control" : parentControl.getMapping() == null ? "No mapping logic!" : parentControl.getMapping().getFriendlyName());
+
+            //
+            // Check if ParentControl has become stale (has been redrawn).  If so, refresh it (force a new findElement on it).  Note that this
+            // will effectively ripple up to the top level
+            //
+            if (parentControl != null && parentControl.isStale()) {
+                Logger.WriteLine(Logger.LogLevels.TestInformation, "Parent control is stale. Refreshing");
+                parentControl.setRootElement((HTMLElement) null);
+                ControlBase refreshedParentControl = ControlBase.SetControl(parentControl.getSeleniumDriver(), parentControl.getParentControl(), parentControl);
+                parentControl = refreshedParentControl;
+            }
+
+            //
+            // We may just be wrapping an Element in a Control that has already been found.  In which case, dont bother
+            // to do a find for it....
+            //
+            if (newControl.getRootElement() == null || !newControl.getRootElement().isBoundToAWebElement()) {
+                Logger.WriteLine(Logger.LogLevels.TestDebug, "New control root element is null or unbound to a Selenium element.  So finding using Control mapping");
+
+                ControlFindElement finder = FindToUse(SeleniumDriver, ParentControl);
+                HTMLElement element = FindControlRootElement(finder, newControl.getMapping());
+                newControl.setRootElement(element);
+            }
+
+            //
+            // Populate new Control object.
+            //
+            newControl.setSeleniumDriver(seleniumDriver);
+            newControl.setParentControl(parentControl); // This may be null.  So, new control is top level....
+
+            //
+            // THIS IS WHERE THE CACHE CONTROL WILL BE DONE....  No NEED FOR MVP. WE ARE SOOOO AGILE! lol
+            // For now, we will just assume Cache Miss
+            //
+            newControl.controlBeingSet(true);
+
+            return newControl;
+        } catch (Exception e) {
+            Logger.WriteLine(Logger.LogLevels.Error, "Error setting on control: %s", e.getMessage());
+            throw new RuntimeException(String.format("Error setting on control: %s", e.getMessage()));
+        }
+    }
+
+    //
+    // All Controls must implement a ControlBeingSet.  This is called when the Control is set upon (IE. Find logic applied and bound to a Selenium element).  It really
+    // will become useful when caching is implemented.  It is used by a Control to do stuff when located in the Dom - IE. A dropdown control may click on it whenever
+    // SET on to expose the dropdown...
+    //
+    abstract void controlBeingSet(boolean isFirstSetting);
+
+    public void clearElement(ObjectMapping mapping) {
+        findElement(mapping).clear();
+    }
+    public void clearElement() {
+        getRootElement().clear();
+    }
+
+    //
+    // Click root element of Control.  Most times controls will override this and click on the most appropriate
+    // element in the control
+    //
+    public void click() {
+        getRootElement().click();
+    }
+    public void click(ObjectMapping mapping) {
+        findElement(mapping).click();
+    }
+
+    public void clickIfExists(ObjectMapping mapping) {
+        HTMLElement element;
+        if ((element = getRootElement().findElementOrNull(mapping))==null) {
+            Logger.WriteLine(Logger.LogLevels.TestInformation, "[%s] didnt find any match.  No click.",mapping==null?"Null mapping!":mapping.getFriendlyName());
+        }
+        else {
+            element.click();
+        }
+    }
+
+    public String getAttribute(ObjectMapping mapping, String attributeName) {
+        HTMLElement element = findElement(mapping);
+        try {
+            return element.getAttribute(attributeName);
+        }
+        catch (Exception e) {
+            return "";
+        }
+    }
+    public String getAttribute(String attributeName) {
+        try {
+            return getRootElement().getAttribute(attributeName);
+        }
+        catch (Exception e) {
+            return "";
+        }
+    }
+
+    public boolean hasAttribute(ObjectMapping mapping, String attributeName) {
+        HTMLElement element = findElement(mapping);
+        try {
+            return element.hasAttribute(attributeName);
+        }
+        catch (Exception e) {
+            return false;
+        }
+    }
+    public boolean hasAttribute(String attributeName) {
+        try {
+            return getRootElement().hasAttribute(attributeName);
+        }
+        catch (Exception e) {
+            return false;
+        }
+    }
+
+    public String getText(ObjectMapping mapping, String attributeName) {
+        HTMLElement element = findElement(mapping);
+        try {
+            return element.getText();
+        }
+        catch (Exception e) {
+            return "";
+        }
+    }
+    public String getText(String attributeName) {
+        try {
+            return getRootElement().getText();
+        }
+        catch (Exception e) {
+            return "";
+        }
+    }
+
+    public void setText(ObjectMapping mapping, String text) {
+        HTMLElement element = findElement(mapping);
+        element.setText(text);
+    }
+    public void setText(String text) {
+        getRootElement().setText(text);
+    }
+
+    //
+    // MAT CARRY ON FIND TO USE...
+    //
 
 }
