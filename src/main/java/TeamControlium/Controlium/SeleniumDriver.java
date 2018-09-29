@@ -781,7 +781,7 @@ public class SeleniumDriver {
 
                 setPathToDriverIfExistsAndIsExecutable(seleniumServerFolder, InternetExplorerDriverService.IE_DRIVER_EXE_PROPERTY,executable);
                 if (seleniumDebugMode)
-                    System.setProperty(InternetExplorerDriverService.IE_DRIVER_LOGLEVEL_PROPERTY, "INFO");
+                    System.setProperty(InternetExplorerDriverService.IE_DRIVER_LOGLEVEL_PROPERTY, "TRACE");
 
 
                 if (seleniumLogFilename != null) {
@@ -871,26 +871,26 @@ public class SeleniumDriver {
     }
 
     private String CheckAndPreparSeleniumLogFile(String SeleniumDebugFile) {
-        String seleniumDebugFile = SeleniumDebugFile;
+        String seleniumDebugFile ="";
         String pathAndFile = "";
 
-        if (seleniumDebugFile==null || seleniumDebugFile.isEmpty())
+        if (SeleniumDebugFile==null || SeleniumDebugFile.isEmpty())
             return null;
         else
         {
             //
             // If path is relative, make it absolute..
             //
-            final File debugFile = new File(seleniumDebugFile);
-            String seleniumDebugFileFolder = debugFile.getAbsolutePath();
+            seleniumDebugFile = new File(SeleniumDebugFile).getAbsolutePath();
 
             // File path/name is passed on CMD line so remove all spaces
-            String seleniumDebugFileName = FilenameUtils.removeExtension(seleniumDebugFile);
+            String seleniumDebugFileFolder = FilenameUtils.getFullPath(seleniumDebugFile);
+            String seleniumDebugFileName = FilenameUtils.getBaseName(seleniumDebugFile);
             String seleniumDebugFileExt = FilenameUtils.getExtension(seleniumDebugFile);
-            Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "SeleniumDebugFile: [%s]",seleniumDebugFile);
-            Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "seleniumDebugFileFolder: [%s]",seleniumDebugFileFolder);
-            Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "seleniumDebugFileName: [%s]",seleniumDebugFileName);
-            Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "seleniumDebugFileExt: [%s]",seleniumDebugFileExt);
+            Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "SeleniumDebug File: [%s]",seleniumDebugFile);
+            Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "seleniumDebug FileFolder: [%s]",seleniumDebugFileFolder);
+            Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "seleniumDebug FileName: [%s]",seleniumDebugFileName);
+            Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "seleniumDebug FileExt: [%s]",seleniumDebugFileExt);
 
 
             if (seleniumDebugFileFolder==null || seleniumDebugFileFolder.isEmpty())  seleniumDebugFileFolder = System.getProperty("user.dir");
@@ -920,9 +920,9 @@ public class SeleniumDriver {
                     }
                 }
 
-                pathAndFile = Paths.get(seleniumDebugFileFolder,(seleniumDebugFileName + seleniumDebugFileExt)).toString();
+                pathAndFile = Paths.get(seleniumDebugFileFolder,(seleniumDebugFileName + "."+ seleniumDebugFileExt)).toString();
 
-                (new File(pathAndFile)).mkdirs();
+                (new File(seleniumDebugFileFolder)).mkdirs();
 
                 Files.write(Paths.get(pathAndFile), Arrays.asList("TeamControlium Selenium Debug File"));
                 return pathAndFile;

@@ -150,12 +150,17 @@ public class BasicNavigationAndFindTests {
     @org.junit.jupiter.api.Test
     void VerifyUnstableElementTimeout() {
         seleniumDriver.setFindTimeout(Duration.ofMillis(10000));
+        //
+        // At bouncejs.com  there is an element in the left preferences panel that is constantly moving up and down.  So it is NEVER stable.  So we can check that
+        // findElement fails if told to wait untile stable.
+        //
+        ObjectMapping movingElement = new ObjectMapping("//div[@id='preferences']/div[@class='empty-message']","Moving element in left preferences panel");
         seleniumDriver.gotoURL("http://bouncejs.com/");
         HTMLElement element=null;
         String errorMessage=null;
         StopWatch stopWatch = StopWatch.createStarted();
         try {
-            element = seleniumDriver.findElement(new ObjectMapping("//div[@id='preferences']/div[@class='empty-message']","Moving element in left preferences panel"),true);
+            element = seleniumDriver.findElement(movingElement,true);
         }
         catch( Exception e) {
             stopWatch.stop();

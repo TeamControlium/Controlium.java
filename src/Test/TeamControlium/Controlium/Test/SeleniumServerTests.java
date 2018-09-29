@@ -8,6 +8,9 @@ import org.junit.jupiter.api.Assertions;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -41,6 +44,61 @@ public class SeleniumServerTests {
         }
         Assertions.assertEquals(chromeCountBefore,chromeCountAfter-1,"Number of Chrome Driver instances increments");
     }
+
+
+    // Verify Selenium can be launched locally with logging
+    @org.junit.jupiter.api.Test
+    void VerifySeleniumLogging() {
+
+        String logFile = "TestServer/log.txt";
+        TestData.setItem("Selenium","LogFile",logFile);
+
+        SeleniumDriver seleniumDriver = new SeleniumDriver(false);
+        seleniumDriver.CloseDriver();
+
+        List<String> lines = new ArrayList<>();
+
+        try {
+            lines = Files.readAllLines(Paths.get(logFile), Charset.defaultCharset());
+        }
+        catch (Exception e) {
+            Assertions.assertEquals(true,false,"No exception reading log file");
+        }
+
+        Assertions.assertEquals(true,lines.stream().filter(a -> (a.contains("[INFO]"))).count()>0,"Has more than one line with INFO");
+
+
+        //Assertions.assertEquals(chromeCountBefore,chromeCountAfter-1,"Number of Chrome Driver instances increments");
+    }
+
+
+    // Verify Selenium can be launched locally with debug logging
+    @org.junit.jupiter.api.Test
+    void VerifySeleniumDebugLogging() {
+
+        String logFile = "TestServer/log.txt";
+        TestData.setItem("Selenium","DebugMode","yes");
+        TestData.setItem("Selenium","LogFile",logFile);
+
+        SeleniumDriver seleniumDriver = new SeleniumDriver(false);
+        seleniumDriver.CloseDriver();
+
+        List<String> lines = new ArrayList<>();
+
+        try {
+            lines = Files.readAllLines(Paths.get(logFile), Charset.defaultCharset());
+        }
+        catch (Exception e) {
+            Assertions.assertEquals(true,false,"No exception reading log file");
+        }
+
+        Assertions.assertEquals(true,lines.stream().filter(a -> (a.contains("[DEBUG]"))).count()>0,"Has more than one line with DEBUG");
+
+
+        //Assertions.assertEquals(chromeCountBefore,chromeCountAfter-1,"Number of Chrome Driver instances increments");
+    }
+
+
 
     // Verify Selenium can kill other instances of Server on startup
     @org.junit.jupiter.api.Test
