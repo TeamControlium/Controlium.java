@@ -35,6 +35,11 @@ public class HTMLElement {
 
 
     // Constructors
+
+    //
+    // Create an instance of an Element.  It has no mapping, no Parent and has not yet been located in a DOM
+    //
+    //
     public HTMLElement() {
     }
 
@@ -42,6 +47,16 @@ public class HTMLElement {
         setParentOfThisElement(parent);
         setMappingDetails(mapping);
         setUnderlyingWebElement(underlyingWebElement);
+    }
+
+    //
+    // Create an instance of an Element.  The mapping is set but it has no Parent and has not yet been located in a DOM
+    //
+    //
+    public HTMLElement(ObjectMapping mapping) {
+        setParentOfThisElement(null);
+        setMappingDetails(mapping);
+        setUnderlyingWebElement(null);
     }
 
 
