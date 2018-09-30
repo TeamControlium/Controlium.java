@@ -35,13 +35,27 @@ public class HTMLElement {
 
 
     // Constructors
+
+    //
+    // Create an instance of an Element.  It has no mapping, no Parent and has not yet been located in a DOM
+    //
+    //
     public HTMLElement() {
     }
 
     public HTMLElement(Object parent, Object underlyingWebElement, ObjectMapping mapping) {
         setParentOfThisElement(parent);
+        setUnderlyingWebElement(underlyingWebElement,mapping);
+    }
+
+    //
+    // Create an instance of an Element.  The mapping is set but it has no Parent and has not yet been located in a DOM
+    //
+    //
+    public HTMLElement(ObjectMapping mapping) {
+        setParentOfThisElement(null);
         setMappingDetails(mapping);
-        setUnderlyingWebElement(underlyingWebElement);
+        setUnderlyingWebElement(null);
     }
 
 
@@ -61,8 +75,12 @@ public class HTMLElement {
     }
 
     public Object setUnderlyingWebElement(Object webElement) {
+        return setUnderlyingWebElement(webElement,null);
+    }
+
+    public Object setUnderlyingWebElement(Object webElement,ObjectMapping mapping) {
         _webElement = webElement;
-        _mappingDetails = new ObjectMapping(null, String.format("Wired directly to underlying UI driver WebElement [%s]", webElement.getClass().getName()));
+        _mappingDetails = mapping==null?new ObjectMapping(null, String.format("Wired directly to underlying UI driver WebElement [%s]", webElement.getClass().getName())):mapping;
         return _webElement;
     } // Manually wiring to WebElement so we have no mapping details!
 
@@ -325,6 +343,26 @@ public class HTMLElement {
         return getSeleniumDriver().findElement(this,mapping,waitUntilSingle,waitUntilStable);
     }
 
+    public HTMLElement findElementOrNull(ObjectMapping mapping) {
+        // We can only do this if we have an instance of SeleniumDriver
+        throwIfUnbound();
+        return getSeleniumDriver().findElementOrNull(this,mapping);
+    }
+    public HTMLElement findElementOrNull(ObjectMapping mapping,boolean allowMultipleMatches) {
+        // We can only do this if we have an instance of SeleniumDriver
+        throwIfUnbound();
+        return getSeleniumDriver().findElementOrNull(this,mapping,allowMultipleMatches);
+    }
+    public HTMLElement findElementOrNull(ObjectMapping mapping,boolean waitUntilSingle,boolean waitUntilStable) {
+        // We can only do this if we have an instance of SeleniumDriver
+        throwIfUnbound();
+        return getSeleniumDriver().findElementOrNull(this,mapping,waitUntilSingle,waitUntilStable);
+    }
+    public Exception getLastFindException() {
+        return getSeleniumDriver().getLastException();
+    }
+
+
     public boolean waitForHeightStable(Duration timeout) {
         return waitForElementStable(StabilityType.HEIGHT, timeout);
     }
@@ -363,6 +401,18 @@ public class HTMLElement {
         }
         this.setUnderlyingWebElement(foundElement.getUnderlyingWebElement());
         return this;
+    }
+
+    public void clear() {
+        throwIfUnbound();
+        try {
+            getSeleniumDriver().clear(this.getUnderlyingWebElement());
+        }
+        catch (Exception e) {
+            Logger.WriteLine(Logger.LogLevels.Error,"Error thrown clearing text in [%s]: %s",getFriendlyName(),e.getMessage());
+            throw new RuntimeException(String.format("Error thrown clearing text in [%s] ([%s]).",getFriendlyName(),getMappingDetails().getActualFindLogic()),e);
+
+        }
     }
 
     public void setText(String text) {
@@ -501,6 +551,20 @@ public class HTMLElement {
         catch (Exception e) {
             Logger.WriteLine(Logger.LogLevels.TestInformation,"Error thrown getting attribute [%s] from [%s]: %s",getFriendlyName(),e.getMessage());
             throw new RuntimeException(String.format("Error thrown getting attribute [%s] from [%s] ([%s])",attribute==null?"Null":attribute,getFriendlyName(),getMappingDetails().getActualFindLogic()),e);
+        }
+    }
+
+    public boolean hasAttribute(String attribute) {
+        throwIfUnbound();
+        try {
+            return getSeleniumDriver().hasAttribute(getUnderlyingWebElement(),attribute);
+        }
+        catch (InvalidElementState ex) {
+            throw ex;
+        }
+        catch (Exception e) {
+            Logger.WriteLine(Logger.LogLevels.TestDebug,"Error thrown getting attribute [%s] from [%s]. Assume does not have attribute: %s",getFriendlyName(),e.getMessage());
+            return false;
         }
     }
 
