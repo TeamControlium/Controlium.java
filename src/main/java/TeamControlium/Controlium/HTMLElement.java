@@ -45,8 +45,7 @@ public class HTMLElement {
 
     public HTMLElement(Object parent, Object underlyingWebElement, ObjectMapping mapping) {
         setParentOfThisElement(parent);
-        setMappingDetails(mapping);
-        setUnderlyingWebElement(underlyingWebElement);
+        setUnderlyingWebElement(underlyingWebElement,mapping);
     }
 
     //
@@ -76,8 +75,12 @@ public class HTMLElement {
     }
 
     public Object setUnderlyingWebElement(Object webElement) {
+        return setUnderlyingWebElement(webElement,null);
+    }
+
+    public Object setUnderlyingWebElement(Object webElement,ObjectMapping mapping) {
         _webElement = webElement;
-        _mappingDetails = new ObjectMapping(null, String.format("Wired directly to underlying UI driver WebElement [%s]", webElement.getClass().getName()));
+        _mappingDetails = mapping==null?new ObjectMapping(null, String.format("Wired directly to underlying UI driver WebElement [%s]", webElement.getClass().getName())):mapping;
         return _webElement;
     } // Manually wiring to WebElement so we have no mapping details!
 
@@ -398,6 +401,18 @@ public class HTMLElement {
         }
         this.setUnderlyingWebElement(foundElement.getUnderlyingWebElement());
         return this;
+    }
+
+    public void clear() {
+        throwIfUnbound();
+        try {
+            getSeleniumDriver().clear(this.getUnderlyingWebElement());
+        }
+        catch (Exception e) {
+            Logger.WriteLine(Logger.LogLevels.Error,"Error thrown clearing text in [%s]: %s",getFriendlyName(),e.getMessage());
+            throw new RuntimeException(String.format("Error thrown clearing text in [%s] ([%s]).",getFriendlyName(),getMappingDetails().getActualFindLogic()),e);
+
+        }
     }
 
     public void setText(String text) {

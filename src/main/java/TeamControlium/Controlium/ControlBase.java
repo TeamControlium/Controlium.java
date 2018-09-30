@@ -5,7 +5,10 @@ import TeamControlium.Utilities.Logger;
 import org.apache.commons.lang3.time.StopWatch;
 import org.apache.http.MethodNotSupportedException;
 
+import java.util.List;
 import java.util.Objects;
+
+
 
 /// <summary>An abstract Core control all other Core controls inherit from.  Contains all methods and properties that are common to TeamControlium controls.
 /// <para/><para/>It should be noted that it is possible to perform an illegal action against a control.  As an example, calling SetText (See <see cref="SetText(FindBy, string, string)"/> or <see cref="SetText(string)"/>) against a TeamControlium button
@@ -13,19 +16,16 @@ import java.util.Objects;
 /// depending on the functionality of the control; for example, a Dropdown control driver may have a SelectItem(Iten identification) method to select a dropdown item.</summary>
 public abstract class ControlBase {
 
-
-    private ObjectMapping _Mapping;
-
+    protected ObjectMapping _Mapping;
     public ObjectMapping getMapping() {
         return _Mapping;
     }
-
     protected ObjectMapping setMapping(ObjectMapping mapping) {
         _Mapping = mapping;
         return _Mapping;
     }
 
-    private HTMLElement _RootElement;
+    protected HTMLElement _RootElement;
 
     public HTMLElement getRootElement() {
         if (_RootElement == null) {
@@ -105,7 +105,7 @@ public abstract class ControlBase {
             if (parentControl != null && parentControl.isStale()) {
                 Logger.WriteLine(Logger.LogLevels.TestInformation, "Parent control is stale. Refreshing");
                 parentControl.setRootElement((HTMLElement) null);
-                ControlBase refreshedParentControl = ControlBase.SetControl(parentControl.getSeleniumDriver(), parentControl.getParentControl(), parentControl);
+                ControlBase refreshedParentControl = ControlBase.setControl(parentControl.getSeleniumDriver(), parentControl.getParentControl(), parentControl);
                 parentControl = refreshedParentControl;
             }
 
@@ -113,11 +113,20 @@ public abstract class ControlBase {
             // We may just be wrapping an Element in a Control that has already been found.  In which case, dont bother
             // to do a find for it....
             //
-            if (newControl.getRootElement() == null || !newControl.getRootElement().isBoundToAWebElement()) {
-                Logger.WriteLine(Logger.LogLevels.TestDebug, "New control root element is null or unbound to a Selenium element.  So finding using Control mapping");
+            if (newControl._RootElement == null || !newControl.getRootElement().isBoundToAWebElement()) {
+                Logger.WriteLine(Logger.LogLevels.TestDebug, "New control root element is null or unbound to a Selenium element.  So finding element");
 
-                ControlFindElement finder = FindToUse(SeleniumDriver, ParentControl);
-                HTMLElement element = FindControlRootElement(finder, newControl.getMapping());
+                //
+                // If the control is top level we have to use the driver find.  If not then we apply the find from the root of the parent control
+                //
+                HTMLElement element;
+                if (parentControl==null) {
+                    element = seleniumDriver.findElement(newControl.getMapping());
+                }
+                else
+                {
+                    element = parentControl.getRootElement().findElement(newControl.getMapping());
+                }
                 newControl.setRootElement(element);
             }
 
@@ -145,7 +154,27 @@ public abstract class ControlBase {
     // will become useful when caching is implemented.  It is used by a Control to do stuff when located in the Dom - IE. A dropdown control may click on it whenever
     // SET on to expose the dropdown...
     //
-    abstract void controlBeingSet(boolean isFirstSetting);
+    protected abstract void controlBeingSet(boolean isFirstSetting);
+
+    public boolean isStale() {
+        try
+        {
+            //
+            // We do a dummy action to force Selenium to report any stagnantation....
+            //
+            getRootElement().isElementEnabled();
+            return false;
+        }
+        catch (Exception ex)
+        {
+            //
+            // TODO: Might need to analyse the error to see if it is actually a Stale element exception.....
+            //
+            Logger.LogException(ex);
+            return true;
+        }
+    }
+
 
     public void clearElement(ObjectMapping mapping) {
         findElement(mapping).clear();
@@ -211,7 +240,7 @@ public abstract class ControlBase {
         }
     }
 
-    public String getText(ObjectMapping mapping, String attributeName) {
+    public String getText(ObjectMapping mapping) {
         HTMLElement element = findElement(mapping);
         try {
             return element.getText();
@@ -220,7 +249,7 @@ public abstract class ControlBase {
             return "";
         }
     }
-    public String getText(String attributeName) {
+    public String getText() {
         try {
             return getRootElement().getText();
         }
@@ -237,8 +266,19 @@ public abstract class ControlBase {
         getRootElement().setText(text);
     }
 
-    //
-    // MAT CARRY ON FIND TO USE...
-    //
+
+    public HTMLElement findElement(ObjectMapping mapping) {
+        if (getRootElement()==null) {
+            throw new RuntimeException(String.format("Control [%s] root element is null.  Has the Control been Set (SetControl) yet?",getMapping()==null?"Unknown":getMapping().getFriendlyName()==null?"Unknown":getMapping().getFriendlyName()));
+        }
+        return getRootElement().findElement(mapping);
+    }
+
+    public List<HTMLElement> findAllElements(ObjectMapping mapping) {
+        if (getRootElement()==null) {
+            throw new RuntimeException(String.format("Control [%s] root element is null.  Has the Control been Set (SetControl) yet?",getMapping()==null?"Unknown":getMapping().getFriendlyName()==null?"Unknown":getMapping().getFriendlyName()));
+        }
+        return getRootElement().findAllElements(mapping);
+    }
 
 }
