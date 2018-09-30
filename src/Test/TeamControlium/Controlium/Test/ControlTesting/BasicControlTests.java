@@ -301,5 +301,39 @@ public class BasicControlTests {
         assertEquals("0.01",cellContents,"Table cell contents correctly read");
     }
 
+    // Verify we can click a button control
+    @org.junit.jupiter.api.Test
+    void VerifyButtonClick() {
+        seleniumDriver.gotoURL("https://www.maxsys.com.au/");
+        Button buttonControl=null;
+        try {
+            buttonControl = new Button("Sign In");
+            buttonControl = ControlBase.setControl(seleniumDriver,buttonControl);
+            buttonControl.click();
+        }
+        catch( Exception e) {
+            Logger.WriteLine(Logger.LogLevels.TestInformation,"Error thrown clicking on Button control: ",e.getMessage());
+        }
+        HTMLElement oops = seleniumDriver.findElementOrNull(new ObjectMapping("//*[starts-with(.,'Oops')]","Error message"));
+        assertNotNull(oops,"Error message shown");
+    }
+
+    // Verify we can click a link (Anchor) control
+    @org.junit.jupiter.api.Test
+    void VerifyLinkClick() {
+        seleniumDriver.gotoURL("https://www.maxsys.com.au/");
+        Anchor anchorControl=null;
+        try {
+            anchorControl = new Anchor("Forgot Password?");
+            anchorControl = ControlBase.setControl(seleniumDriver,anchorControl);
+            anchorControl.click();
+        }
+        catch( Exception e) {
+            Logger.WriteLine(Logger.LogLevels.TestInformation,"Error thrown clicking on Anchor control: ",e.getMessage());
+        }
+        String pageTitle = seleniumDriver.getPageTitle().trim();
+        assertEquals("MAXsys | Forgot Password",pageTitle,"Forgot password page shown");
+    }
+
 }
 
