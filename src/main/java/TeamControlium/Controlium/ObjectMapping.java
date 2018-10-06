@@ -1,8 +1,9 @@
 package TeamControlium.Controlium;
 
 import java.lang.*;
+import java.util.Map;
+
 import TeamControlium.Utilities.Logger;
-import javafx.util.Pair;
 import org.openqa.selenium.By;
 
 public class ObjectMapping {
@@ -106,7 +107,7 @@ public class ObjectMapping {
         }
     }
 
-    public ObjectMapping ResolveParameters(String... params) {
+    public ObjectMapping resolveParameters(String... params) {
         String newFindLogic = null;
         String newFriendlyName = null;
 
@@ -141,7 +142,7 @@ public class ObjectMapping {
 
     private By processFindLogic(String property) {
         By returnValue;
-        Pair<String,String> findLogicNameValue;
+        KeyValue<String,String> findLogicNameValue;
 
         //
         // Get the find type and logic
@@ -151,10 +152,10 @@ public class ObjectMapping {
         } else {
             if (property.contains("=")) {
                 String[] nameValue = property.split("=", 2);
-                findLogicNameValue = new Pair<String, String>(nameValue[0], nameValue[1]);
+                findLogicNameValue = new KeyValue<String, String>(nameValue[0], nameValue[1]);
             } else {
                 // Default to xpath....
-                findLogicNameValue = new Pair<String, String>("xpath", property);
+                findLogicNameValue = new KeyValue<String, String>("xpath", property);
             }
 
             switch (findLogicNameValue.getKey()) {
@@ -196,6 +197,38 @@ public class ObjectMapping {
                     break;
             }
             return returnValue;
+        }
+    }
+
+    public class KeyValue<K, V> implements Map.Entry<K, V>
+    {
+        private K key;
+        private V value;
+
+        public KeyValue(K key, V value)
+        {
+            this.key = key;
+            this.value = value;
+        }
+
+        public K getKey()
+        {
+            return this.key;
+        }
+
+        public V getValue()
+        {
+            return this.value;
+        }
+
+        public K setKey(K key)
+        {
+            return this.key = key;
+        }
+
+        public V setValue(V value)
+        {
+            return this.value = value;
         }
     }
 }

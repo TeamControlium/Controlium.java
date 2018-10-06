@@ -4,9 +4,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <name>TeamControlium Controlium control-based Selenium abstraction</name>
-    <groupId>org.testcontrolium</groupId>
+    <groupId>org.teamcontrolium</groupId>
     <artifactId>controlium</artifactId>
-    <version>1.0</version>
+    <version>1.0.2</version>
     <description>TeamControlium Controlium provides the API and foundations for Control-based use of Selenium</description>
     <url>https://github.com/TeamControlium</url>
     <inceptionYear>2017</inceptionYear>
@@ -17,7 +17,7 @@
     <licenses>
         <license>
             <name>The MIT License</name>
-            <url>https://github.com/TeamControlium/Controlium.java/blob/master/LICENSE</url>
+            <url>https://github.com/TeamControlium/Controlium.java/blob/master/LICENSE.txt</url>
             <distribution>repo</distribution>
         </license>
     </licenses>
@@ -39,9 +39,63 @@
                 <version>3.7.0</version>
                 <configuration>
                     <!-- or whatever version you use -->
-                    <source>10</source>
-                    <target>10</target>
+                    <source>1.8</source>
+                    <target>1.8</target>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>1.5</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.sonatype.plugins</groupId>
+                <artifactId>nexus-staging-maven-plugin</artifactId>
+                <version>1.6.7</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <serverId>ossrh</serverId>
+                    <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+                    <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+				<version>3.0.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.0.0</version>
+                <configuration>
+                    <skip>false</skip>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
@@ -71,11 +125,6 @@
             <version>2.5</version>
         </dependency>
         <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-api</artifactId>
-            <version>5.0.0</version>
-        </dependency>
-        <dependency>
             <!-- jsoup HTML parser library @ https://jsoup.org/ -->
             <groupId>org.jsoup</groupId>
             <artifactId>jsoup</artifactId>
@@ -84,7 +133,7 @@
         <dependency>
             <groupId>org.teamcontrolium</groupId>
             <artifactId>utilities</artifactId>
-            <version>1.1.0</version>
+            <version>1.2.2</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -105,6 +154,16 @@
             <roles>
                 <role>Lead Developer</role>
             </roles>
+            <timezone>+10</timezone>
+        </developer>
+        <developer>
+            <id>K8Coder</id>
+            <name>Kate More</name>
+            <email>kmoor@alexview.com</email>
+            <roles>
+                <role>Java Developer</role>
+            </roles>
+            <organization>TeamControlium Committers</organization>
             <timezone>+10</timezone>
         </developer>
     </developers>

@@ -268,6 +268,8 @@ public class SeleniumDriver {
                                             pollIntervalMillis,                              // Polling ionterval in milliseconds
                                             timer);                                          // Find stopwatch timing whole finding
 
+            Logger.WriteLine(Logger.LogLevels.FrameworkDebug,"Got [%s] elements",clauseResults==null?"Null!":Integer.toString(clauseResults.size()));
+
             if (clauseResults.size()==0) {
                 String errorText = String.format("Time reached and found 0 matching elements using ([%s] - %s) from [%s] (Waited upto %dmS).",
                         objectMapping.getActualFindLogic(),
@@ -467,7 +469,8 @@ public class SeleniumDriver {
             //
             // Usually thrown by Selenium when element stale
             //
-            throw new InvalidElementState("Unable to clear element.  See underlying cause.",e);
+            Logger.WriteLine(Logger.LogLevels.Error,"Unable to clear element.  See underlying cause: %s",e);
+            throw new InvalidElementState(String.format("Unable to clear element.  See underlying cause: %s",e),e);
         }
     }
 
@@ -895,10 +898,11 @@ public class SeleniumDriver {
     private List<HTMLElement> getHtmlElements(HTMLElement parentElement, ObjectMapping objectMapping, boolean allowMultipleMatches, boolean waitUntilSingle, boolean showMultiFound, long totalTimeoutMillis, long pollIntervalMillis, StopWatch timer) {
         List<HTMLElement> clauseResults = new ArrayList<HTMLElement>();
         while (clauseResults.size() == 0 || (clauseResults.size() != 1 && !allowMultipleMatches && waitUntilSingle)) {
+            Logger.WriteLine(Logger.LogLevels.TestDebug, "Allow Multiple Matches [%s], Wait until single match [%s].", allowMultipleMatches?"true":"false",waitUntilSingle?"true":"false");
             clauseResults = findElements(parentElement, objectMapping);
+            Logger.WriteLine(Logger.LogLevels.TestDebug, "Found %s elements matching [%s].", clauseResults==null?"Null!":Integer.toString(clauseResults.size()), objectMapping.getActualFindLogic());
             if (clauseResults.size() == 0 || (clauseResults.size() != 1 && !allowMultipleMatches && waitUntilSingle)) {
                 if (clauseResults.size() > 0 && showMultiFound) {
-                    Logger.WriteLine(Logger.LogLevels.TestDebug, "Found %d elements matching [%s].  Waiting until only a single element is found...", clauseResults.size(), objectMapping.getActualFindLogic());
                     showMultiFound = false;
                 }
                 try {

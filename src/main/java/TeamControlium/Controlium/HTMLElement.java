@@ -423,7 +423,7 @@ public class HTMLElement {
         setText(text,1,retryInterval);}
     public void setText(String text,int maxTries,Duration retryInterval)
     {
-        RuntimeException lastException=null;
+        Exception lastException=null;
         throwIfUnbound();
         if (maxTries<1) throw new RuntimeException(String.format("Maximum tries [%d].  Cannot be less than 1.",maxTries));
         int tryIndex = 0;
@@ -435,6 +435,7 @@ public class HTMLElement {
             {
                 try
                 {
+                    Logger.WriteLine(Logger.LogLevels.FrameworkDebug,"Calling Selenium driver clear with WebElement. Driver %s, Element %s",getSeleniumDriver()==null?"Null":"Good",getUnderlyingWebElement()==null?"Null!":"Good");
                     getSeleniumDriver().clear(this.getUnderlyingWebElement());
                     enterText(text);
                     if (tryIndex > 1) Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "{0} attempt attempt good.)", tryIndex);
@@ -445,11 +446,16 @@ public class HTMLElement {
                     Thread.sleep(retryInterval.toMillis());
                     lastException = e;
                 }
+                catch (Exception e)
+                {
+                    Thread.sleep(retryInterval.toMillis());
+                    lastException = e;
+                }
             }
             throw lastException;
         }
         catch (InvalidElementState ex) {
-            Logger.WriteLine(Logger.LogLevels.Error,"Error thrown setting text (clear then enter) in [%s] (Tried %d times): %s",getFriendlyName(),tryIndex,ex.getMessage());
+            Logger.WriteLine(Logger.LogLevels.Error,"Error thrown setting text (clear then enter) in [%s] (Tried %d times): %s",getFriendlyName(),tryIndex,ex);
             throw new InvalidElementState(String.format("Error thrown setting text (clear then enter) in [%s] ([%s]).  Tried %d times).",getFriendlyName(),getMappingDetails().getActualFindLogic(),tryIndex),ex);
 
         }
@@ -480,6 +486,7 @@ public class HTMLElement {
             {
                 try
                 {
+                    Logger.WriteLine(Logger.LogLevels.FrameworkDebug,"Calling Selenium driver setText with WebElement. Driver %s, Element %s, text = [%s]",getSeleniumDriver()==null?"Null":"Good",getUnderlyingWebElement()==null?"Null!":"Good",text==null?"<null!>":text);
                     getSeleniumDriver().setText(this.getUnderlyingWebElement(),(text==null)?"":text);
                     if (tryIndex > 1) Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "{0} attempt attempt good.)", tryIndex);
                     return;
