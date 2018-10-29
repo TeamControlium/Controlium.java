@@ -94,10 +94,11 @@ public abstract class ControlBase {
         StopWatch timeWaited = StopWatch.createStarted();
 
         try {
-            Logger.WriteLine(Logger.LogLevels.TestInformation, "Setting on Control [%s] from Parent [%s]",
+            Logger.WriteLine(Logger.LogLevels.TestInformation, "Setting on Control [%s] from Parent [%s] with SeleniumDriver hash [%s] (WebDriver hash [%s])",
                     newControl.getMapping() == null ? "No mapping logic!" : newControl.getMapping().getFriendlyName(),
-                    parentControl == null ? "No parent Control - So Top Level control" : parentControl.getMapping() == null ? "No mapping logic!" : parentControl.getMapping().getFriendlyName());
-
+                    parentControl == null ? "No parent Control - So Top Level control" : parentControl.getMapping() == null ? "No mapping logic!" : parentControl.getMapping().getFriendlyName(),
+                    seleniumDriver==null?"null":Integer.toString(seleniumDriver.hashCode()),
+                    seleniumDriver==null?"N/A":(seleniumDriver.getWebDriver()==null?"Null!":Integer.toString(seleniumDriver.getWebDriver().hashCode())));
             //
             // Check if ParentControl has become stale (has been redrawn).  If so, refresh it (force a new findElement on it).  Note that this
             // will effectively ripple up to the top level
@@ -149,6 +150,11 @@ public abstract class ControlBase {
         }
     }
 
+    public static <T extends ControlBase> boolean controlExists(ControlBase parentControl,T control) { return parentControl.elementExists(control.getMapping());}
+    public static <T extends ControlBase> boolean controlExists(SeleniumDriver seleniumDriver, T control) { return seleniumDriver.findElementOrNull(control.getMapping())!=null;}
+    public static <T extends ControlBase> boolean controlExists(SeleniumDriver seleniumDriver, ControlBase parentControl, T control) { return seleniumDriver.findElement(parentControl.getMapping()).findElementOrNull(control.getMapping())!=null;}
+
+    public <T extends ControlBase> boolean controlExists(T control) {return this.elementExists(control.getMapping());}
     //
     // All Controls must implement a ControlBeingSet.  This is called when the Control is set upon (IE. Find logic applied and bound to a Selenium element).  It really
     // will become useful when caching is implemented.  It is used by a Control to do stuff when located in the Dom - IE. A dropdown control may click on it whenever
@@ -175,6 +181,9 @@ public abstract class ControlBase {
         }
     }
 
+    public boolean elementExists(ObjectMapping mapping) {
+        return getRootElement().findElementOrNull(mapping)!=null;
+    }
 
     public void clearElement(ObjectMapping mapping) {
         findElement(mapping).clear();
@@ -234,6 +243,42 @@ public abstract class ControlBase {
     public boolean hasAttribute(String attributeName) {
         try {
             return getRootElement().hasAttribute(attributeName);
+        }
+        catch (Exception e) {
+            return false;
+        }
+    }
+
+    public String getCssValue(ObjectMapping mapping, String valueName) {
+        HTMLElement element = findElement(mapping);
+        try {
+            return element.getCssValue(valueName);
+        }
+        catch (Exception e) {
+            return "";
+        }
+    }
+    public String getCssValue(String valueName) {
+        try {
+            return getRootElement().getCssValue(valueName);
+        }
+        catch (Exception e) {
+            return "";
+        }
+    }
+
+    public boolean hasCssValue(ObjectMapping mapping, String valueName) {
+        HTMLElement element = findElement(mapping);
+        try {
+            return element.hasCssValue(valueName);
+        }
+        catch (Exception e) {
+            return false;
+        }
+    }
+    public boolean hasCssValue(String valueName) {
+        try {
+            return getRootElement().hasCssValue(valueName);
         }
         catch (Exception e) {
             return false;
