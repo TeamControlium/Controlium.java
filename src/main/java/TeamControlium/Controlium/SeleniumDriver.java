@@ -16,6 +16,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.openqa.selenium.*;
@@ -28,6 +29,7 @@ import org.openqa.selenium.edge.EdgeOptions;
 import org.openqa.selenium.ie.InternetExplorerDriver;
 import org.openqa.selenium.ie.InternetExplorerDriverService;
 import org.openqa.selenium.ie.InternetExplorerOptions;
+import org.openqa.selenium.internal.WrapsDriver;
 import org.w3c.dom.NodeList;
 
 import javax.swing.text.html.HTMLDocument;
@@ -133,6 +135,9 @@ public class SeleniumDriver {
         setSeleniumHost(seleniumHost);
 
         startOrConnectToSeleniumServer(killFirst);
+        Logger.WriteLine(Logger.LogLevels.FrameworkInformation,"Started SeleniumDriver. Hash code [%d].  WebDriver hash code [%s]",
+                this.hashCode(),
+                getWebDriver()==null?"null!":Integer.toString(getWebDriver().hashCode()));
     }
 
 
@@ -157,6 +162,24 @@ public class SeleniumDriver {
 
     public Browsers getDevice() { return _browser; }
     public Browsers setDevice(Devices device) { _device=device; return getDevice();}
+
+    public Set<String> getAllBrowserWindows() {
+        if (getWebDriver()!=null) {
+            return getWebDriver().getWindowHandles();
+        }
+        else {
+            throw new RuntimeException("Cannot get Browser windows handles as WebDriver null!");
+        }
+    }
+
+    public void setBrowserWindow(String handle) {
+        if (getWebDriver()!=null) {
+            getWebDriver().switchTo().window(handle);
+        }
+        else {
+            throw new RuntimeException("Cannot set Browser window as WebDriver null!");
+        }
+    }
 
     public void setIFrame(HTMLElement htmlElement) {
         WebElement webElement = ((WebElement)htmlElement.getUnderlyingWebElement());
@@ -276,7 +299,7 @@ public class SeleniumDriver {
                         objectMapping.getFriendlyName(),
                         (parentElement == null) ? "DOM Top Level" : parentElement.getMappingDetails().getFriendlyName(),
                         timer.getTime());
-                Logger.WriteLine(Logger.LogLevels.Error, errorText);
+                Logger.WriteLine(Logger.LogLevels.FrameworkInformation, errorText);
                 throw new RuntimeException(errorText);
 
             }
@@ -351,7 +374,7 @@ public class SeleniumDriver {
             throw new RuntimeException("SeleniumDriver.FindElements called with mapping null!");
         }
 
-        Logger.WriteLine(Logger.LogLevels.FrameworkDebug,"ObjectMapping = [%s] (%s)",mapping.getOriginalFindLogic(),mapping.getFriendlyName());
+        Logger.WriteLine(Logger.LogLevels.FrameworkDebug,"webDriver hash [%s], ObjectMapping = [%s] (%s)",webDriver==null?"Null!":Integer.toString(webDriver.hashCode()),mapping.getOriginalFindLogic(),mapping.getFriendlyName());
 
         By seleniumFindBy = mapping.getSeleniumBy();
 
@@ -403,6 +426,19 @@ public class SeleniumDriver {
         return returnElements;
     }
 
+    public WebDriver getWebDriver() { return webDriver;}
+    public void setBrowserSize(int x, int y) {
+      if (webDriver==null) {
+          throw new RuntimeException("Selenium web driver has not been started!");
+      }
+      webDriver.manage().window().setSize(new Dimension(x,y));
+    }
+    public void setBrowserFullScreen() {
+        if (webDriver==null) {
+            throw new RuntimeException("Selenium web driver has not been started!");
+        }
+        webDriver.manage().window().fullscreen();
+    }
 
     public void gotoURL(String fullURLPath) {
         try {
@@ -414,7 +450,6 @@ public class SeleniumDriver {
             throw e;
         }
     }
-
     public String getPageTitle() {
         try {
             String title = webDriver.getTitle();
@@ -563,6 +598,7 @@ public class SeleniumDriver {
         if (webElement == null) throw new RuntimeException("webElement null!");
 
         try {
+            Logger.WriteLine(Logger.LogLevels.FrameworkDebug,"Click using WebDriver hash [%s]",((WrapsDriver) webElement).getWrappedDriver()==null?"null!!":Integer.toString(((WrapsDriver) webElement).getWrappedDriver().hashCode()));
             ((WebElement) webElement).click();
         } catch (WebDriverException wde) {
             String errorMessage = wde.getMessage();
@@ -631,6 +667,29 @@ public class SeleniumDriver {
             throw new InvalidElementState(String.format("Unable to get element attribute [%s].  See underlying cause.",(attribute==null)?"Null!!":attribute),e);
         }
     }
+
+    public String getCssValue(Object webElement,String valueName) {
+        if (webElement==null) throw new RuntimeException("webElement null!");
+
+        try {
+            String cssValue = ((WebElement)webElement).getCssValue(valueName);
+            Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "Got CSS Value [%s]: [%s]", valueName,(cssValue==null)?"Null":cssValue);
+            return (cssValue==null)?"":cssValue;
+
+        }
+        catch (InvalidElementStateException e) {
+            //
+            // Usually thrown by Selenium when element stale
+            //
+            throw new InvalidElementState(String.format("Unable to get element CSS Value [%s].  See underlying cause.",(valueName==null)?"Null!!":valueName),e);
+        }
+    }
+    public boolean hasCssValue(Object webElement,String valueName) {
+        if (webElement==null) throw new RuntimeException("webElement null!");
+
+        return (!getCssValue(webElement,valueName).isEmpty());
+    }
+
 
     public void scrollIntoView(Object webElement) {
         Logger.WriteLine(Logger.LogLevels.FrameworkDebug, "Scrolling element in to view using JavaScript injection - [Element].scrollIntoView()");
@@ -856,8 +915,6 @@ public class SeleniumDriver {
                 String executable = "ChromeDriver.exe";
                 ChromeOptions options = new ChromeOptions();
 
-
-
                 setPathToDriverIfExistsAndIsExecutable(seleniumServerFolder, ChromeDriverService.CHROME_DRIVER_EXE_PROPERTY,executable);
                 if (seleniumDebugMode) System.setProperty(ChromeDriverService.CHROME_DRIVER_VERBOSE_LOG_PROPERTY, "true");
 
@@ -870,6 +927,7 @@ public class SeleniumDriver {
 
                 if (killFirst) killAllProcesses(executable);
                 webDriver = new ChromeDriver(ChromeDriverService.createDefaultService(), options);
+                Logger.WriteLine(Logger.LogLevels.FrameworkDebug,"Chrome driver created. Hash [%d]",webDriver.hashCode());
             }
             else if (Browsers.isEdge()) {
                 String executable = "EdgeDriver.exe";
@@ -893,6 +951,7 @@ public class SeleniumDriver {
         } catch (Exception e) {
             throw new RuntimeException(String.format("Error instantiating [%s] (%s)", Browsers.isChrome() ? "Chrome" : Browsers.isEdge() ? "Edge" : Browsers.isInternetExplorer() ? "Internet Explorer" : Browsers.isSafari() ? "Safari" : "UNKNOWN!", seleniumServerFolder));
         }
+
     }
 
     private List<HTMLElement> getHtmlElements(HTMLElement parentElement, ObjectMapping objectMapping, boolean allowMultipleMatches, boolean waitUntilSingle, boolean showMultiFound, long totalTimeoutMillis, long pollIntervalMillis, StopWatch timer) {
@@ -922,6 +981,8 @@ public class SeleniumDriver {
         if (driver.exists() && driver.canExecute()) {
             System.setProperty(driverExeProperty, driver.getAbsolutePath());
         } else {
+
+
             throw new IllegalArgumentException(String.format("Driver not found or is not executable in %s", pathToDriver));
         }
     }

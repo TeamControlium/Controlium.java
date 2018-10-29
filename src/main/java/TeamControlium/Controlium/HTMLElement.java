@@ -556,7 +556,7 @@ public class HTMLElement {
             throw ex;
         }
         catch (Exception e) {
-            Logger.WriteLine(Logger.LogLevels.TestInformation,"Error thrown getting attribute [%s] from [%s]: %s",getFriendlyName(),e.getMessage());
+            Logger.WriteLine(Logger.LogLevels.TestInformation,"Error thrown getting attribute [%s] from [%s]: %s",attribute,getFriendlyName(),e.getMessage());
             throw new RuntimeException(String.format("Error thrown getting attribute [%s] from [%s] ([%s])",attribute==null?"Null":attribute,getFriendlyName(),getMappingDetails().getActualFindLogic()),e);
         }
     }
@@ -570,10 +570,39 @@ public class HTMLElement {
             throw ex;
         }
         catch (Exception e) {
-            Logger.WriteLine(Logger.LogLevels.TestDebug,"Error thrown getting attribute [%s] from [%s]. Assume does not have attribute: %s",getFriendlyName(),e.getMessage());
+            Logger.WriteLine(Logger.LogLevels.TestDebug,"Error thrown getting attribute [%s] from [%s]. Assume does not have attribute: %s",attribute,getFriendlyName(),e.getMessage());
             return false;
         }
     }
+
+    public String getCssValue(String valueName) {
+        throwIfUnbound();
+        try {
+            return getSeleniumDriver().getCssValue(getUnderlyingWebElement(),valueName);
+        }
+        catch (InvalidElementState ex) {
+            throw ex;
+        }
+        catch (Exception e) {
+            Logger.WriteLine(Logger.LogLevels.TestInformation,"Error thrown getting CSS value [%s] from [%s]: %s",valueName,getFriendlyName(),e.getMessage());
+            throw new RuntimeException(String.format("Error thrown getting CSS value [%s] from [%s] ([%s])",valueName==null?"Null":valueName,getFriendlyName(),getMappingDetails().getActualFindLogic()),e);
+        }
+    }
+
+    public boolean hasCssValue(String valueName) {
+        throwIfUnbound();
+        try {
+            return getSeleniumDriver().hasCssValue(getUnderlyingWebElement(),valueName);
+        }
+        catch (InvalidElementState ex) {
+            throw ex;
+        }
+        catch (Exception e) {
+            Logger.WriteLine(Logger.LogLevels.TestDebug,"Error thrown getting CSS value [%s] from [%s]. Assume does not have CSS value: %s",valueName,getFriendlyName(),e.getMessage());
+            return false;
+        }
+    }
+
 
     public void click() {
         throwIfUnbound();
