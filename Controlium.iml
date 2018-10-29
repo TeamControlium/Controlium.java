@@ -41,7 +41,7 @@
     <orderEntry type="library" name="Maven: org.mod4j.org.apache.commons:lang:2.1.0" level="project" />
     <orderEntry type="library" name="Maven: commons-io:commons-io:2.5" level="project" />
     <orderEntry type="library" name="Maven: org.jsoup:jsoup:1.11.2" level="project" />
-    <orderEntry type="library" name="Maven: org.teamcontrolium:utilities:1.2.2" level="project" />
+    <orderEntry type="library" name="Maven: org.teamcontrolium:utilities:1.2.3" level="project" />
     <orderEntry type="library" name="Maven: org.junit.jupiter:junit-jupiter-api:5.0.0" level="project" />
     <orderEntry type="library" name="Maven: org.apiguardian:apiguardian-api:1.0.0" level="project" />
     <orderEntry type="library" name="Maven: org.opentest4j:opentest4j:1.0.0" level="project" />

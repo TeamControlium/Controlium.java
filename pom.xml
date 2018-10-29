@@ -6,7 +6,7 @@
     <name>TeamControlium Controlium control-based Selenium abstraction</name>
     <groupId>org.teamcontrolium</groupId>
     <artifactId>controlium</artifactId>
-    <version>1.0.2</version>
+    <version>1.1.0</version>
     <description>TeamControlium Controlium provides the API and foundations for Control-based use of Selenium</description>
     <url>https://github.com/TeamControlium</url>
     <inceptionYear>2017</inceptionYear>
@@ -133,7 +133,7 @@
         <dependency>
             <groupId>org.teamcontrolium</groupId>
             <artifactId>utilities</artifactId>
-            <version>1.2.2</version>
+            <version>1.2.3</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
